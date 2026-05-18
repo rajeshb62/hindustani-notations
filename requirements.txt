@@ -1,0 +1,5 @@
+demucs
+crepe
+tensorflow
+numpy
+scipy

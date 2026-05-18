@@ -1,0 +1,90 @@
+TAAL QUICK REFERENCE — ICCR-1854-AC SIDE B
+===========================================
+STATUS:       SOLVED AND VERIFIED
+
+TAAL:         Teentaal
+MATRAS:       16
+VIBHAG:       4 + 4 + 4 + 4
+KHALI:        matra 9
+BHARI:        matras 1, 5, 13
+
+GLOBAL MATRA: 0.418s (143.5 BPM)
+GLOBAL CYCLE: 6.6873s
+LAY:          Madhya-Drut
+RANGE:        133–157 BPM (±12%, normal live variation)
+
+TABLA ENTRY:  ~225s (alap before this, no tabla)
+TOTAL SAMS:   165
+FIRST SAM:    234.463s
+LAST SAM:     1451.410s
+
+SILENCE GAPS (not tempo changes):
+  Gap 1: ~368s – ~488s (120s, long vilambit/silence)
+  Gap 2: ~1190s – ~1204s (~13s)
+
+GROUND TRUTH SAMS (for validation):
+  555.467s, 562.155s, 568.843s, 575.531s
+  Verified tolerance: ±0.069s (well within ±0.3s)
+
+PHASE CALIBRATION:
+  Method: Option B anchor
+  Anchor: 555.467s
+  Phase:  555.467 - 83 × 6.6873 = 0.417s
+
+FINE-TUNE SNAP:
+  search_radius = 0.15s
+  max_snap      = 0.10s
+  min_strength  = 0.08
+
+SA FREQUENCY:
+  Sa = 98.0 Hz (confirmed from detected_sa.json)
+  Pa = 146.8 Hz | Upper Sa = 196.0 Hz
+  NOTE: Prior analysis used Sa=87.0 Hz (wrong by 2 semitones) —
+        OLD_WRONG_87Hz_v2.txt is the incorrect output; use v3 only.
+
+OUTPUT FILES:
+  detected_taal.json              ← sam_times array (165 sams)
+  sam_spacing_timeline.txt        ← per-sam BPM log
+  detected_sa.json                ← Sa frequency (98.0 Hz confirmed)
+  sargam_notation_v3_ICCR1854.txt ← sargam data (correct, 98.0 Hz)
+  OLD_WRONG_87Hz_v2.txt           ← INCORRECT (87.0 Hz, do not use)
+  sargam_visualiser.html          ← visualiser app (matra counter + BPM)
+
+ALGORITHM FILES:
+  detect_taal_v2.py
+  detect_sa.py
+  extract_sargam_v3.py
+
+SARGAM PIPELINE — CURRENT STATE
+================================
+Script:      extract_sargam_v3.py
+Input 1:     detected_sa.json      (Sa=98.0 Hz)
+Input 2:     vocals.f0.vad.csv     (VAD-filtered CREPE output)
+Output:      sargam_notation_v3_ICCR1854.txt
+Notes:       5,492 notes
+
+Key settings:
+  Sa:                  98.0 Hz (from detected_sa.json)
+  Confidence:          0.75 (lowered from 0.85)
+  VAD threshold:       0.35
+  VAD min silence:     1500ms
+  VAD speech pad:      500ms
+  Tanpura block freq:  346.0 Hz ±15 Hz (also 173, 692)
+  Frames kept:         86,866
+  Frames dropped:      59,741
+
+To regenerate sargam from scratch:
+  1. python detect_sa.py
+  2. python -m demucs --two-stems=vocals [mp3 file]
+  3. crepe vocals.wav --step-size 10 --model full --viterbi
+  4. python run_vad.py
+  5. python extract_sargam_v3.py
+
+TO RESTART AFTER /clear:
+  Read in this order:
+  1. TAAL_QUICK_REFERENCE.txt        (this file)
+  2. TAAL_ALGORITHM_RULES.md         (taal detection)
+  3. TAAL_GROUND_TRUTH.md            (verified sam positions)
+  4. SARGAM_PIPELINE_CHANGES.md      (sargam extraction)
+================================
+===========================================

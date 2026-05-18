@@ -1,0 +1,133 @@
+SARGAM NOTATION — ICCR-1854-AC SIDE B
+Excerpt: 9:00 – 9:40 (540s – 580s)
+Times shown are offset from clip start (0:00 = 9:00 in original)
+Sa = 98.0 Hz
+KEY: S=Sa R=Re(sh) r=Re(ko) G=Ga(sh) g=Ga(ko) M=Ma(sh)
+     M+=Ma(tivra) P=Pa D=Dha(sh) d=Dha(ko) N=Ni(sh) n=Ni(ko)
+     ' = taar (upper octave)   . = mandra (lower octave)
+FORMAT: [MM:SS.ss]  note  duration  full_name
+============================================================
+
+  [00:00.09]  R'      0.290s    Re shuddh — taar saptak
+  [00:01.14]  M'      0.060s    Ma shuddh — taar saptak
+  [00:01.29]  R'      0.040s    Re shuddh — taar saptak
+  [00:01.33]  g'      0.290s    Ga komal — taar saptak
+  [00:01.62]  R'      0.050s    Re shuddh — taar saptak
+  [00:01.76]  R'      0.260s    Re shuddh — taar saptak
+  [00:02.20]  S       0.080s    Sa — madhya saptak
+  [00:03.42]  g'      0.040s    Ga komal — taar saptak
+  [00:03.46]  R'      0.070s    Re shuddh — taar saptak
+  [00:03.53]  r'      0.090s    Re komal — taar saptak
+  [00:03.62]  S'      0.090s    Sa — taar saptak
+  [00:04.01]  R'      0.240s    Re shuddh — taar saptak
+  [00:04.25]  g'      0.080s    Ga komal — taar saptak
+  [00:04.33]  R'      0.170s    Re shuddh — taar saptak
+  [00:04.50]  g'      0.060s    Ga komal — taar saptak
+  [00:04.68]  S'      0.180s    Sa — taar saptak
+  [00:04.86]  r'      0.060s    Re komal — taar saptak
+  [00:05.83]  R'      0.260s    Re shuddh — taar saptak
+  [00:06.50]  M'      0.070s    Ma shuddh — taar saptak
+  [00:07.13]  R'      0.060s    Re shuddh — taar saptak
+  [00:07.19]  g'      0.090s    Ga komal — taar saptak
+  [00:07.31]  g'      0.080s    Ga komal — taar saptak
+  [00:07.39]  R'      0.260s    Re shuddh — taar saptak
+  [00:07.89]  S       0.140s    Sa — madhya saptak
+  [00:09.67]  S'      0.070s    Sa — taar saptak
+  [00:10.06]  d'      0.060s    Dha komal — taar saptak
+  [00:10.12]  P'      0.240s    Pa — taar saptak
+  [00:10.43]  M'      0.290s    Ma shuddh — taar saptak
+  [00:10.86]  R'      0.070s    Re shuddh — taar saptak
+  [00:10.96]  S       0.240s    Sa — madhya saptak
+  [00:11.23]  r'      0.060s    Re komal — taar saptak
+  [00:11.29]  R'      0.160s    Re shuddh — taar saptak
+  [00:11.82]  M+'     0.050s    Ma tivra — taar saptak
+  [00:12.02]  R'      0.190s    Re shuddh — taar saptak
+  [00:12.21]  g'      0.570s    Ga komal — taar saptak
+  [00:12.91]  M'      0.080s    Ma shuddh — taar saptak
+  [00:12.99]  G'      0.090s    Ga shuddh — taar saptak
+  [00:13.08]  g'      0.070s    Ga komal — taar saptak
+  [00:13.15]  R'      0.190s    Re shuddh — taar saptak
+  [00:13.40]  R'      0.060s    Re shuddh — taar saptak
+  [00:13.50]  R'      0.070s    Re shuddh — taar saptak
+  [00:13.57]  r'      0.050s    Re komal — taar saptak
+  [00:13.65]  S       0.170s    Sa — madhya saptak
+  [00:13.82]  S'      0.050s    Sa — taar saptak
+  [00:15.40]  P'      0.050s    Pa — taar saptak
+  [00:15.65]  d'      0.070s    Dha komal — taar saptak
+  [00:15.72]  P'      0.250s    Pa — taar saptak
+  [00:16.01]  M'      0.350s    Ma shuddh — taar saptak
+  [00:16.37]  G'      0.080s    Ga shuddh — taar saptak
+  [00:16.45]  M'      0.130s    Ma shuddh — taar saptak
+  [00:16.58]  G'      0.060s    Ga shuddh — taar saptak
+  [00:16.64]  g'      0.050s    Ga komal — taar saptak
+  [00:16.99]  R'      0.300s    Re shuddh — taar saptak
+  [00:17.31]  R'      0.100s    Re shuddh — taar saptak
+  [00:17.79]  M'      0.100s    Ma shuddh — taar saptak
+  [00:18.02]  R'      0.080s    Re shuddh — taar saptak
+  [00:18.10]  g'      0.630s    Ga komal — taar saptak
+  [00:18.73]  R'      0.070s    Re shuddh — taar saptak
+  [00:18.92]  g'      0.040s    Ga komal — taar saptak
+  [00:19.00]  r'      0.050s    Re komal — taar saptak
+  [00:19.05]  R'      0.180s    Re shuddh — taar saptak
+  [00:19.24]  R'      0.090s    Re shuddh — taar saptak
+  [00:19.33]  g'      0.070s    Ga komal — taar saptak
+  [00:19.40]  R'      0.060s    Re shuddh — taar saptak
+  [00:19.55]  S'      0.040s    Sa — taar saptak
+  [00:19.60]  S       0.090s    Sa — madhya saptak
+  [00:20.61]  D'      0.060s    Dha shuddh — taar saptak
+  [00:21.43]  P'      0.070s    Pa — taar saptak
+  [00:21.60]  P'      0.170s    Pa — taar saptak
+  [00:22.30]  R'      0.070s    Re shuddh — taar saptak
+  [00:22.37]  r'      0.060s    Re komal — taar saptak
+  [00:22.43]  S'      0.080s    Sa — taar saptak
+  [00:22.54]  r'      0.070s    Re komal — taar saptak
+  [00:22.62]  R'      0.200s    Re shuddh — taar saptak
+  [00:22.91]  r'      0.050s    Re komal — taar saptak
+  [00:22.96]  R'      0.060s    Re shuddh — taar saptak
+  [00:23.25]  M'      0.120s    Ma shuddh — taar saptak
+  [00:24.01]  S'      0.240s    Sa — taar saptak
+  [00:25.34]  d'      0.060s    Dha komal — taar saptak
+  [00:25.40]  P'      0.150s    Pa — taar saptak
+  [00:25.66]  M'      0.070s    Ma shuddh — taar saptak
+  [00:25.86]  P'      0.120s    Pa — taar saptak
+  [00:26.04]  P'      0.060s    Pa — taar saptak
+  [00:26.18]  d'      0.040s    Dha komal — taar saptak
+  [00:27.12]  S'      0.060s    Sa — taar saptak
+  [00:27.30]  D'      0.050s    Dha shuddh — taar saptak
+  [00:27.50]  d'      0.060s    Dha komal — taar saptak
+  [00:27.56]  P'      0.350s    Pa — taar saptak
+  [00:27.91]  M+'     0.040s    Ma tivra — taar saptak
+  [00:27.95]  M'      0.340s    Ma shuddh — taar saptak
+  [00:28.44]  R'      0.070s    Re shuddh — taar saptak
+  [00:28.54]  S       0.150s    Sa — madhya saptak
+  [00:28.74]  N       0.050s    Ni shuddh — madhya saptak
+  [00:28.83]  R'      0.160s    Re shuddh — taar saptak
+  [00:29.42]  M'      0.040s    Ma shuddh — taar saptak
+  [00:29.46]  G'      0.060s    Ga shuddh — taar saptak
+  [00:29.52]  M'      0.050s    Ma shuddh — taar saptak
+  [00:29.65]  g'      0.490s    Ga komal — taar saptak
+  [00:30.43]  M'      0.120s    Ma shuddh — taar saptak
+  [00:30.55]  G'      0.080s    Ga shuddh — taar saptak
+  [00:30.63]  g'      0.060s    Ga komal — taar saptak
+  [00:30.69]  R'      0.180s    Re shuddh — taar saptak
+  [00:31.00]  R'      0.090s    Re shuddh — taar saptak
+  [00:31.19]  S       0.180s    Sa — madhya saptak
+  [00:33.24]  P'      0.200s    Pa — taar saptak
+  [00:33.54]  M'      0.290s    Ma shuddh — taar saptak
+  [00:33.97]  R'      0.050s    Re shuddh — taar saptak
+  [00:34.11]  S       0.120s    Sa — madhya saptak
+  [00:34.37]  R'      0.060s    Re shuddh — taar saptak
+  [00:34.52]  R'      0.050s    Re shuddh — taar saptak
+  [00:35.29]  M'      0.040s    Ma shuddh — taar saptak
+  [00:35.46]  g'      0.580s    Ga komal — taar saptak
+  [00:36.15]  g'      0.050s    Ga komal — taar saptak
+  [00:36.20]  R'      0.340s    Re shuddh — taar saptak
+  [00:36.67]  S       0.050s    Sa — madhya saptak
+  [00:36.80]  S       0.190s    Sa — madhya saptak
+  [00:38.97]  d'      0.080s    Dha komal — taar saptak
+  [00:39.05]  P'      0.090s    Pa — taar saptak
+  [00:39.19]  P'      0.080s    Pa — taar saptak
+  [00:39.38]  M'      0.260s    Ma shuddh — taar saptak
+  [00:39.85]  R'      0.060s    Re shuddh — taar saptak
+
+Total notes in excerpt: 121

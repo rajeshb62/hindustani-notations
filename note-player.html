@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sargam Note Player</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07060f;
+  --surface:rgba(255,255,255,0.05);
+  --border:rgba(255,255,255,0.09);
+  --text:#e8e0d8;
+  --dim:#5a5060;
+  --accent:#c8b89a;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'SF Mono',Monaco,monospace;overflow:hidden}
+
+#app{display:flex;flex-direction:column;height:100vh;max-width:700px;margin:0 auto}
+
+/* ── TOP BAR ── */
+#top-bar{padding:12px 20px;background:rgba(0,0,0,0.5);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+#top-bar h1{font-size:0.78rem;letter-spacing:0.12em;color:var(--accent);text-transform:uppercase;font-weight:500;flex:1}
+#status{font-size:0.68rem;color:var(--dim);letter-spacing:0.05em}
+
+/* ── MAIN NOTE ── */
+#note-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;position:relative}
+#octave-dot-above{font-size:20px;height:24px;display:flex;align-items:center;opacity:0;transition:opacity 0.1s}
+#octave-dot-above.on{opacity:1}
+#big-note{
+  font-family:Georgia,serif;
+  font-size:clamp(100px,22vw,180px);
+  font-weight:700;
+  line-height:1;
+  transition:color 0.08s;
+  position:relative;
+}
+#big-note.komal{text-decoration:underline;text-decoration-thickness:4px;text-underline-offset:6px}
+#octave-dot-below{font-size:20px;height:24px;display:flex;align-items:flex-start;opacity:0;transition:opacity 0.1s}
+#octave-dot-below.on{opacity:1}
+#note-full-name{font-size:0.8rem;letter-spacing:0.14em;color:rgba(232,224,216,0.4);text-transform:uppercase}
+#pos-display{font-size:0.7rem;color:var(--dim);letter-spacing:0.06em;font-variant-numeric:tabular-nums}
+
+/* ── QUEUE ── */
+#queue{flex-shrink:0;height:56px;border-top:1px solid var(--border);background:rgba(0,0,0,0.3);display:flex;align-items:center;padding:0 20px;gap:0;overflow:hidden;position:relative}
+#queue::before{content:'';position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(to right,rgba(7,6,15,0.9),transparent);z-index:1;pointer-events:none}
+#queue::after{content:'';position:absolute;right:0;top:0;bottom:0;width:60px;background:linear-gradient(to left,rgba(7,6,15,0.9),transparent);z-index:1;pointer-events:none}
+#queue-inner{display:flex;align-items:center;gap:6px;transition:transform 0.18s ease;white-space:nowrap}
+.q-item{
+  display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:36px;height:44px;padding:2px 4px;border-radius:5px;
+  font-family:Georgia,serif;font-size:1.1rem;font-weight:700;
+  opacity:0.22;transition:opacity 0.12s,background 0.12s;flex-shrink:0;
+  position:relative;
+}
+.q-item.past{opacity:0.12}
+.q-item.current{opacity:1;background:rgba(255,255,255,0.08)}
+.q-item.near{opacity:0.55}
+.q-item .q-oct{font-size:0.38rem;color:rgba(255,255,255,0.4);position:absolute;top:4px;right:3px}
+
+/* ── CONTROLS ── */
+#controls{flex-shrink:0;padding:12px 20px 16px;background:rgba(0,0,0,0.5);border-top:1px solid var(--border);display:flex;align-items:center;gap:14px}
+#play-btn{width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.22);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0}
+#play-btn:hover{background:rgba(255,255,255,0.18)}
+#play-btn.playing{background:rgba(200,184,154,0.18);border-color:var(--accent)}
+#reset-btn{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--dim);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0}
+#reset-btn:hover{background:rgba(255,255,255,0.12);color:var(--text)}
+#scrub-wrap{flex:1;display:flex;flex-direction:column;gap:5px}
+#scrub{width:100%;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,0.1);outline:none;cursor:pointer}
+#scrub::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
+#time-row{display:flex;justify-content:space-between;align-items:center}
+#time-cur{font-size:0.68rem;color:var(--dim);font-variant-numeric:tabular-nums}
+#speed-wrap{display:flex;gap:4px;align-items:center}
+.sp-btn{padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--dim);font-size:0.65rem;cursor:pointer;transition:all 0.12s;font-family:inherit}
+.sp-btn:hover{color:var(--text);border-color:rgba(255,255,255,0.25)}
+.sp-btn.active{background:rgba(200,184,154,0.15);border-color:var(--accent);color:var(--accent)}
+
+/* ── FILE INPUT ── */
+#file-area{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:40px;text-align:center}
+#file-area h2{font-size:1rem;color:var(--accent);font-weight:500}
+#file-area p{font-size:0.82rem;color:var(--dim);line-height:1.6}
+#file-input{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit}
+#vol-wrap{display:flex;align-items:center;gap:8px}
+#vol-wrap label{font-size:0.65rem;color:var(--dim);letter-spacing:0.06em}
+#vol{width:70px;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,0.1);outline:none;cursor:pointer}
+#vol::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--accent);cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="top-bar">
+    <h1>Sargam Note Player</h1>
+    <div id="vol-wrap">
+      <label>VOL</label>
+      <input id="vol" type="range" min="0" max="1" step="0.05" value="0.5" oninput="setVol(this.value)"/>
+    </div>
+    <div id="status">Loading…</div>
+  </div>
+
+  <!-- file fallback -->
+  <div id="file-area">
+    <h2>Load notation file</h2>
+    <p>Could not auto-load <code>sargam_notation_v3_ICCR1854.txt</code><br/>Select it manually:</p>
+    <input type="file" id="file-input" accept=".txt,text/plain" onchange="loadFile(this)"/>
+  </div>
+
+  <!-- sam file loader (always visible in top-bar area) -->
+  <div id="sam-load-bar" style="padding:4px 20px;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <span id="sam-status" style="font-size:0.67rem;color:#5a5060;letter-spacing:0.05em">SAM: not loaded</span>
+    <label style="padding:3px 10px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:#5a5060;font-size:0.65rem;cursor:pointer;font-family:inherit;letter-spacing:0.05em">
+      Load sam_times_manual.json
+      <input type="file" accept=".json" style="display:none" onchange="loadSamFileManual(this)"/>
+    </label>
+  </div>
+
+  <div id="note-area">
+    <div id="octave-dot-above">●</div>
+    <div id="big-note">—</div>
+    <div id="octave-dot-below">●</div>
+    <div id="note-full-name">—</div>
+    <div id="pos-display">note — / —</div>
+  </div>
+
+  <div id="queue">
+    <div id="queue-inner"></div>
+  </div>
+
+  <div id="controls">
+    <button id="reset-btn" onclick="resetPlayer()" title="Reset">↺</button>
+    <button id="play-btn" onclick="togglePlay()" title="Space">▶</button>
+    <div id="scrub-wrap">
+      <input id="scrub" type="range" min="0" max="100" step="1" value="0" oninput="onScrub(this.value)"/>
+      <div id="time-row">
+        <div id="time-cur">0:00</div>
+        <div id="speed-wrap">
+          <button class="sp-btn" onclick="setSpeed(0.5)">0.5×</button>
+          <button class="sp-btn active" onclick="setSpeed(1.0)">1×</button>
+          <button class="sp-btn" onclick="setSpeed(1.5)">1.5×</button>
+          <button class="sp-btn" onclick="setSpeed(2.0)">2×</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Note definitions ──────────────────────────────────────
+const SA_HZ = 98.0;
+
+// Just intonation ratios from Sa
+const RATIOS = {
+  'S': 1,
+  'r': 256/243,
+  'R': 9/8,
+  'g': 32/27,
+  'G': 5/4,
+  'M': 4/3,
+  'M+':45/32,
+  'P': 3/2,
+  'd': 128/81,
+  'D': 5/3,
+  'n': 16/9,
+  'N': 15/8,
+  's': 1,    // mandra Sa (lowercase)
+  'p': 3/2,  // mandra Pa (lowercase)
+};
+
+const NOTE_COLORS = {
+  'S':'#E63946','s':'#E63946','R':'#F4845F','r':'#F4845F',
+  'G':'#E9C46A','g':'#E9C46A','M':'#52B788','P':'#2EC4B6',
+  'p':'#2EC4B6','D':'#4895EF','d':'#4895EF','N':'#C77DFF','n':'#C77DFF',
+};
+
+const NOTE_NAMES = {
+  'S':'Sa','s':'Sa','R':'Re','r':'Re','G':'Ga','g':'Ga',
+  'M':'Ma','P':'Pa','p':'Pa','D':'Dha','d':'Dha','N':'Ni','n':'Ni',
+};
+
+const KOMAL = new Set(['r','g','d','n']);
+const MANDRA_BASE = new Set(['s','p']);
+
+function noteFreq(base, tivra, octave) {
+  const key = tivra ? 'M+' : base;
+  let ratio = RATIOS[key] || 1;
+  // mandra base notes (s, p) are already mandra octave
+  let oct = MANDRA_BASE.has(base) ? -1 : octave;
+  return SA_HZ * ratio * Math.pow(2, oct);
+}
+
+// ── Parse notation ────────────────────────────────────────
+function parseNotation(text) {
+  const notes = [];
+  for (const line of text.split('\n')) {
+    const m = line.trim().match(/^\[(\d{1,2}):([\d.]+)\]\s+(\S+)\s+([\d.]+)/);
+    if (!m) continue;
+    const time = parseInt(m[1]) * 60 + parseFloat(m[2]);
+    const raw = m[3];
+    const dur = parseFloat(m[4]);
+    const base = raw[0];
+    if (!RATIOS[base] && !(raw.startsWith('M+'))) continue;
+    const tivra = raw.includes('+');
+    const octave = raw.includes("'") ? 1 : (raw.includes('.') ? -1 : 0);
+    const komal = KOMAL.has(base);
+    const mandra = MANDRA_BASE.has(base);
+    const freq = noteFreq(base, tivra, octave);
+    const color = NOTE_COLORS[base] || '#fff';
+    const shortName = tivra ? 'M+' : base.toUpperCase();
+    const octLabel = (octave === 1 || raw.includes("'")) ? "'" : (octave === -1 || raw.includes('.') || mandra) ? '.' : '';
+    const fullName = (komal ? `${NOTE_NAMES[base]} komal` : tivra ? 'Ma tivra' : `${NOTE_NAMES[base] || base}`) +
+                     (octave === 1 ? ' — taar' : octave === -1 || mandra ? ' — mandra' : '');
+    notes.push({ time, dur, raw, base, tivra, octave, komal, freq, color, shortName, octLabel, fullName });
+  }
+  return notes;
+}
+
+// ── Web Audio — flute engine ──────────────────────────────
+// Persistent oscillators running continuously.
+// Notes transition by gliding frequency, not stop/start.
+let audioCtx  = null;
+let masterGain = null;
+let reverbNode = null;
+let dryGain = null;
+let wetGain = null;
+let fluteNodes = null;  // persistent osc nodes
+let fluteGain  = null;  // master envelope for the flute
+let volume = 0.5;
+
+function buildReverb() {
+  const sr = audioCtx.sampleRate;
+  const len = sr * 2.2;
+  const ir = audioCtx.createBuffer(2, len, sr);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c);
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      const decay = Math.exp(-t * 3.5);
+      const early = t < 0.03 ? 0.5 * Math.exp(-t * 80) : 0;
+      d[i] = (Math.random() * 2 - 1) * (decay + early);
+    }
+  }
+  const conv = audioCtx.createConvolver();
+  conv.buffer = ir;
+  return conv;
+}
+
+function ensureAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = volume;
+  dryGain = audioCtx.createGain();  dryGain.gain.value = 0.65;
+  wetGain = audioCtx.createGain();  wetGain.gain.value = 0.35;
+  reverbNode = buildReverb();
+  dryGain.connect(masterGain);
+  wetGain.connect(masterGain);
+  reverbNode.connect(wetGain);
+  masterGain.connect(audioCtx.destination);
+}
+
+function initFlute(firstFreq) {
+  // Create all oscillators once — they run forever, we just glide their pitch
+  ensureAudio();
+  if (fluteNodes) return;
+  const now = audioCtx.currentTime;
+
+  // Fundamental (dominant — flute is mostly sine)
+  const fund = audioCtx.createOscillator();
+  fund.type = 'sine';
+  fund.frequency.value = firstFreq;
+
+  // Very weak 2nd harmonic for slight body
+  const harm2 = audioCtx.createOscillator();
+  harm2.type = 'sine';
+  harm2.frequency.value = firstFreq * 2;
+  const harm2Gain = audioCtx.createGain();
+  harm2Gain.gain.value = 0.08;
+
+  // Breathiness: looping white noise through a bandpass tracking the pitch
+  const SR = audioCtx.sampleRate;
+  const nb = audioCtx.createBuffer(1, SR * 3, SR);
+  const nd = nb.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  const noiseSource = audioCtx.createBufferSource();
+  noiseSource.buffer = nb;
+  noiseSource.loop = true;
+  const noiseBP = audioCtx.createBiquadFilter();
+  noiseBP.type = 'bandpass';
+  noiseBP.frequency.value = firstFreq;
+  noiseBP.Q.value = 1.5;
+  const noiseGain = audioCtx.createGain();
+  noiseGain.gain.value = 0.06;
+
+  // Vibrato LFO — persistent, depth ramps in after note settles
+  const lfo = audioCtx.createOscillator();
+  lfo.frequency.value = 5.5;
+  const lfoGain = audioCtx.createGain();
+  lfoGain.gain.value = 0;  // silent to start
+
+  // Warmth filter — cuts harshness above ~3kHz
+  const warmth = audioCtx.createBiquadFilter();
+  warmth.type = 'lowpass';
+  warmth.frequency.value = 3000;
+  warmth.Q.value = 0.5;
+
+  // Master envelope — controls silence between pauses
+  fluteGain = audioCtx.createGain();
+  fluteGain.gain.value = 0;
+
+  // Connect
+  fund.connect(fluteGain);
+  harm2.connect(harm2Gain);
+  harm2Gain.connect(fluteGain);
+  noiseSource.connect(noiseBP);
+  noiseBP.connect(noiseGain);
+  noiseGain.connect(fluteGain);
+  lfo.connect(lfoGain);
+  lfoGain.connect(fund.frequency);  // vibrato on fundamental only
+  fluteGain.connect(warmth);
+  warmth.connect(dryGain);
+  warmth.connect(reverbNode);
+
+  fund.start(now);
+  harm2.start(now);
+  noiseSource.start(now);
+  lfo.start(now);
+
+  fluteNodes = { fund, harm2, noiseBP, lfoGain };
+}
+
+function startFlute(firstFreq) {
+  ensureAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  initFlute(firstFreq);
+  // Set pitch immediately then fade in
+  fluteNodes.fund.frequency.value = firstFreq;
+  fluteNodes.harm2.frequency.value = firstFreq * 2;
+  fluteNodes.noiseBP.frequency.value = firstFreq;
+  const now = audioCtx.currentTime;
+  fluteGain.gain.cancelScheduledValues(now);
+  fluteGain.gain.setValueAtTime(0, now);
+  fluteGain.gain.linearRampToValueAtTime(0.6, now + 0.25);
+  // Vibrato ramps in after first note settles
+  fluteNodes.lfoGain.gain.setValueAtTime(0, now);
+  fluteNodes.lfoGain.gain.linearRampToValueAtTime(firstFreq * 0.003, now + 0.55);
+}
+
+function playNote(freq, dur) {
+  if (!fluteNodes) return;
+  const now = audioCtx.currentTime;
+  // Glide pitch only — no amplitude manipulation between notes.
+  // Any gain scheduling causes discontinuity clicks; the pitch glide
+  // alone gives enough sense of note change for a legato flute sound.
+  const glide = Math.min(0.06, dur * 0.15);
+  fluteNodes.fund.frequency.setTargetAtTime(freq, now, glide);
+  fluteNodes.harm2.frequency.setTargetAtTime(freq * 2, now, glide);
+  fluteNodes.noiseBP.frequency.setTargetAtTime(freq, now, glide);
+  fluteNodes.lfoGain.gain.setTargetAtTime(freq * 0.003, now + glide, 0.08);
+}
+
+function stopFlute() {
+  if (!fluteGain || !audioCtx) return;
+  const now = audioCtx.currentTime;
+  const g = fluteGain.gain;
+  const cv = g.value;             // read current rendered gain before cancelling
+  g.cancelScheduledValues(now);   // clear pending automation
+  g.setValueAtTime(cv, now);      // anchor at actual current value (no jump)
+  g.linearRampToValueAtTime(0, now + 0.35);
+}
+
+function setVol(v) {
+  volume = parseFloat(v);
+  if (masterGain) masterGain.gain.value = volume;
+}
+
+// ── Sam beat ──────────────────────────────────────────────
+// A short tabla-like thud: sine pitch drop 110→55 Hz over 0.18s.
+// Routed through masterGain so it respects the volume slider.
+function playBeat() {
+  ensureAudio();
+  if (!audioCtx || !masterGain) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const now = audioCtx.currentTime;
+  // Low thud: fundamental + octave, pitch drops 120→50Hz
+  const osc  = audioCtx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
+  const g    = audioCtx.createGain();
+  osc.type  = 'sine'; osc.frequency.setValueAtTime(120, now);
+  osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+  osc2.type = 'sine'; osc2.frequency.setValueAtTime(240, now);
+  osc2.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+  const g2 = audioCtx.createGain(); g2.gain.value = 0.35;
+  g.gain.setValueAtTime(1.2, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+  osc.connect(g); osc2.connect(g2); g2.connect(g);
+  g.connect(masterGain);
+  osc.start(now);  osc.stop(now + 0.3);
+  osc2.start(now); osc2.stop(now + 0.3);
+}
+
+// Find the index of the first sam >= recording time t
+function samIdxFrom(t) {
+  let lo = 0, hi = samTimes.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (samTimes[mid] < t) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+// Schedule beats for all sams that fall in [fromRecTime, toRecTime)
+function scheduleSamBeats(fromRecTime, toRecTime) {
+  while (nextSamIdx < samTimes.length && samTimes[nextSamIdx] < toRecTime) {
+    const st = samTimes[nextSamIdx];
+    if (st >= fromRecTime) {
+      const wallTarget = playStartWallTime + (st - playStartRecTime) * 1000 / speed;
+      const delay = Math.max(0, wallTarget - Date.now());
+      console.log(`[sam] scheduling beat #${nextSamIdx} at recTime=${st.toFixed(2)} delay=${delay.toFixed(0)}ms`);
+      beatTimers.push(setTimeout(playBeat, delay));
+    }
+    nextSamIdx++;
+  }
+}
+
+function clearBeatTimers() {
+  beatTimers.forEach(id => clearTimeout(id));
+  beatTimers = [];
+}
+
+function updateSamStatus() {
+  const el = document.getElementById('sam-status');
+  if (!el) return;
+  if (samTimes.length === 0) {
+    el.textContent = 'SAM: not loaded';
+    el.style.color = '#5a5060';
+  } else {
+    el.textContent = `SAM: ${samTimes.length} marks loaded`;
+    el.style.color = '#c8b89a';
+  }
+}
+
+function loadSamFileManual(input) {
+  if (!input.files[0]) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const times = data.sam_times || data;
+      if (!Array.isArray(times)) throw new Error();
+      samTimes = times.sort((a, b) => a - b);
+      updateSamStatus();
+      console.log(`[sam] loaded ${samTimes.length} sams manually, first=${samTimes[0]?.toFixed(2)}, last=${samTimes[samTimes.length-1]?.toFixed(2)}`);
+    } catch(e) { alert('Could not parse sam times — select sam_times_manual.json'); }
+  };
+  r.readAsText(input.files[0]);
+  input.value = '';
+}
+
+// ── Player state ──────────────────────────────────────────
+let notes = [];
+let noteIdx = 0;
+let playing = false;
+let speed = 1.0;
+let playTimer = null;
+let noteOffTimer = null;
+let fluteAutoStopped = false;
+let playStartWallTime = 0;   // Date.now() when playback anchored
+let playStartRecTime  = 0;   // notes[].time of anchor note
+let queueItems = [];
+
+// ── Sam beat state ─────────────────────────────────────────
+let samTimes   = [];   // sorted array of sam timestamps from sam_times_manual.json
+let nextSamIdx = 0;    // pointer into samTimes for next upcoming sam
+let beatTimers = [];   // so we can cancel on stop
+
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${s.toFixed(1).padStart(4, '0')}`;
+}
+
+// ── Build queue strip ─────────────────────────────────────
+function buildQueue() {
+  const inner = document.getElementById('queue-inner');
+  inner.innerHTML = '';
+  queueItems = [];
+  notes.forEach((n, i) => {
+    const el = document.createElement('div');
+    el.className = 'q-item';
+    el.style.color = n.color;
+    el.innerHTML = `${n.shortName}${n.octLabel ? `<span class="q-oct">${n.octLabel}</span>` : ''}`;
+    if (n.komal) el.style.textDecoration = 'underline';
+    inner.appendChild(el);
+    queueItems.push(el);
+  });
+}
+
+function updateQueue(idx) {
+  queueItems.forEach((el, i) => {
+    el.className = 'q-item' + (i < idx ? ' past' : i === idx ? ' current' : i <= idx + 8 ? ' near' : '');
+  });
+  // Scroll so current is centred
+  if (idx >= 0 && queueItems[idx]) {
+    const el = queueItems[idx];
+    const wrap = document.getElementById('queue');
+    const inner = document.getElementById('queue-inner');
+    const wrapW = wrap.offsetWidth;
+    const elOff = el.offsetLeft + el.offsetWidth / 2;
+    inner.style.transform = `translateX(${wrapW / 2 - elOff}px)`;
+  }
+}
+
+// ── Display ───────────────────────────────────────────────
+let lastShownIdx = -2;
+
+function showNote(idx) {
+  if (idx === lastShownIdx) return;
+  lastShownIdx = idx;
+
+  const bigNote  = document.getElementById('big-note');
+  const fullName = document.getElementById('note-full-name');
+  const pos      = document.getElementById('pos-display');
+  const above    = document.getElementById('octave-dot-above');
+  const below    = document.getElementById('octave-dot-below');
+
+  if (idx < 0) {
+    bigNote.textContent = '—';
+    bigNote.style.color = 'rgba(255,255,255,0.08)';
+    bigNote.className = '';
+    fullName.textContent = '—';
+    above.className = '';
+    below.className = '';
+    updateQueue(-1);
+    return;
+  }
+
+  const n = notes[idx];
+  bigNote.textContent = n.shortName;
+  bigNote.style.color = n.color;
+  bigNote.className = n.komal ? 'komal' : '';
+  fullName.textContent = n.fullName;
+  pos.textContent = `note ${idx + 1} / ${notes.length}`;
+  above.className = (n.octave === 1) ? 'on' : '';
+  above.style.color = n.color;
+  below.className = (n.octave === -1 || n.shortName === n.shortName.toLowerCase()) ? 'on' : '';
+  below.style.color = n.color;
+  updateQueue(idx);
+}
+
+// ── Sequential playback ───────────────────────────────────
+// Ignores original timestamps entirely. Each note plays for
+// its musicalDur (scaled from relative original lengths).
+
+const MAX_NOTE_SEC = 1.0;  // cap audible duration; silence fills the rest of the gap
+
+function advanceNote() {
+  if (!playing || noteIdx >= notes.length) {
+    if (noteIdx >= notes.length) stopPlayback();
+    return;
+  }
+
+  // Restore gain if flute was auto-stopped during a long gap
+  if (fluteAutoStopped && fluteGain) {
+    fluteAutoStopped = false;
+    const now = audioCtx.currentTime;
+    const g = fluteGain.gain;
+    const cv = g.value;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(cv, now);
+    g.linearRampToValueAtTime(0.6, now + 0.15);
+  }
+
+  const n = notes[noteIdx];
+  const nextRecTime = noteIdx + 1 < notes.length ? notes[noteIdx + 1].time : n.time + 1.0;
+  const gap = (nextRecTime - n.time) / speed;   // real gap to next note, speed-adjusted
+  const soundDur = Math.min(gap, MAX_NOTE_SEC); // audible portion capped at 1s
+
+  playNote(n.freq, soundDur);
+
+  // Schedule auto-fadeout if gap exceeds cap
+  if (noteOffTimer) clearTimeout(noteOffTimer);
+  if (gap > MAX_NOTE_SEC) {
+    noteOffTimer = setTimeout(() => {
+      if (playing) { fluteAutoStopped = true; stopFlute(); }
+    }, soundDur * 1000);
+  }
+
+  showNote(noteIdx);
+  document.getElementById('scrub').value = noteIdx / (notes.length - 1) * 100;
+  document.getElementById('time-cur').textContent = fmtTime(n.time);
+  noteIdx++;
+
+  // Schedule any sam beats that fall between this note and the next
+  const curRecTime  = n.time;
+  const samWindowEnd = noteIdx < notes.length ? notes[noteIdx].time : n.time + 2;
+  scheduleSamBeats(curRecTime, samWindowEnd);
+
+  // Schedule next note using actual recording timestamps — drift-free
+  if (noteIdx < notes.length) {
+    const wallTarget = playStartWallTime + (notes[noteIdx].time - playStartRecTime) * 1000 / speed;
+    const delay = Math.max(0, wallTarget - Date.now());
+    playTimer = setTimeout(advanceNote, delay);
+  } else {
+    playTimer = setTimeout(stopPlayback, soundDur * 1000);
+  }
+}
+
+function startPlayback() {
+  const firstFreq = notes[noteIdx] ? notes[noteIdx].freq : 196;
+  if (!fluteNodes) {
+    startFlute(firstFreq);
+  } else {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    const g = fluteGain.gain;
+    const cv = g.value;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(cv, now);
+    g.linearRampToValueAtTime(0.6, now + 0.2);
+  }
+  // Anchor wall-clock time to current note's recording timestamp
+  playStartWallTime = Date.now();
+  playStartRecTime  = notes[noteIdx] ? notes[noteIdx].time : 0;
+  nextSamIdx = samIdxFrom(playStartRecTime);
+  console.log(`[sam] ${samTimes.length} sams loaded. nextSamIdx=${nextSamIdx}, playStartRecTime=${playStartRecTime.toFixed(2)}, nextSam=${samTimes[nextSamIdx]?.toFixed(2)}`);
+  playing = true;
+  document.getElementById('play-btn').textContent = '⏸';
+  document.getElementById('play-btn').classList.add('playing');
+  advanceNote();
+}
+
+function stopPlayback() {
+  playing = false;
+  if (playTimer) { clearTimeout(playTimer); playTimer = null; }
+  if (noteOffTimer) { clearTimeout(noteOffTimer); noteOffTimer = null; }
+  clearBeatTimers();
+  fluteAutoStopped = false;
+  stopFlute();
+  document.getElementById('play-btn').textContent = '▶';
+  document.getElementById('play-btn').classList.remove('playing');
+}
+
+function togglePlay() {
+  if (notes.length === 0) return;
+  if (playing) stopPlayback();
+  else startPlayback();
+}
+
+function resetPlayer() {
+  stopPlayback();
+  noteIdx = 0;
+  lastShownIdx = -2;
+  document.getElementById('scrub').value = 0;
+  document.getElementById('time-cur').textContent = notes[0] ? fmtTime(notes[0].time) : '0:00';
+  showNote(0);
+}
+
+function onScrub(val) {
+  const wasPlaying = playing;
+  if (playing) stopPlayback();
+  noteIdx = Math.round(parseFloat(val) / 100 * (notes.length - 1));
+  lastShownIdx = -2;
+  showNote(noteIdx);
+  document.getElementById('time-cur').textContent = notes[noteIdx] ? fmtTime(notes[noteIdx].time) : '';
+  if (wasPlaying) startPlayback();
+}
+
+function setSpeed(s) {
+  const wasPlaying = playing;
+  if (playing) stopPlayback();
+  speed = s;
+  document.querySelectorAll('.sp-btn').forEach(b => {
+    b.classList.toggle('active', parseFloat(b.textContent) === s);
+  });
+  if (wasPlaying) startPlayback();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target.tagName !== 'INPUT') { e.preventDefault(); togglePlay(); }
+  if (e.code === 'ArrowRight') {
+    const wasPlaying = playing;
+    if (playing) stopPlayback();
+    noteIdx = Math.min(notes.length - 1, noteIdx + 10);
+    lastShownIdx = -2; showNote(noteIdx);
+    document.getElementById('scrub').value = noteIdx / (notes.length - 1) * 100;
+    document.getElementById('time-cur').textContent = notes[noteIdx] ? fmtTime(notes[noteIdx].time) : '';
+    if (wasPlaying) startPlayback();
+  }
+  if (e.code === 'ArrowLeft') {
+    const wasPlaying = playing;
+    if (playing) stopPlayback();
+    noteIdx = Math.max(0, noteIdx - 10);
+    lastShownIdx = -2; showNote(noteIdx);
+    document.getElementById('scrub').value = noteIdx / (notes.length - 1) * 100;
+    document.getElementById('time-cur').textContent = notes[noteIdx] ? fmtTime(notes[noteIdx].time) : '';
+    if (wasPlaying) startPlayback();
+  }
+});
+
+// ── Load ──────────────────────────────────────────────────
+function loadNotes(text) {
+  notes = parseNotation(text);
+  if (notes.length === 0) {
+    document.getElementById('status').textContent = 'No notes found';
+    return;
+  }
+
+  document.getElementById('status').textContent = `${notes.length} notes`;
+  document.getElementById('scrub').max = 100;
+  noteIdx = 0;
+  buildQueue();
+  showNote(0);
+  document.getElementById('time-cur').textContent = notes[0] ? fmtTime(notes[0].time) : '0:00';
+  document.getElementById('file-area').style.display = 'none';
+  document.getElementById('note-area').style.display = 'flex';
+  document.getElementById('queue').style.display = 'flex';
+  document.getElementById('controls').style.display = 'flex';
+}
+
+function loadFile(input) {
+  if (!input.files[0]) return;
+  const r = new FileReader();
+  r.onload = e => loadNotes(e.target.result);
+  r.readAsText(input.files[0]);
+}
+
+async function init() {
+  // Load sam times
+  try {
+    const resp = await fetch('./sam_times_manual.json');
+    if (resp.ok) {
+      const data = await resp.json();
+      samTimes = (data.sam_times || data).sort((a, b) => a - b);
+    }
+  } catch(e) { /* optional */ }
+  updateSamStatus();
+
+  try {
+    const resp = await fetch('./sargam_notation_v3_ICCR1854.txt');
+    if (!resp.ok) throw new Error();
+    loadNotes(await resp.text());
+  } catch(e) {
+    document.getElementById('file-area').style.display = 'flex';
+    document.getElementById('note-area').style.display = 'none';
+    document.getElementById('queue').style.display = 'none';
+    document.getElementById('status').textContent = 'Load file below';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
