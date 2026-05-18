@@ -6,3 +6,5 @@ __pycache__/
 separated/
 *.egg-info/
 .env
+tabla_clip_60s.wav
+no_vocals_clip_550_620.wav
