@@ -8,7 +8,8 @@ import numpy as np
 from scipy.optimize import differential_evolution
 from scipy.spatial.distance import cosine as cosine_dist
 
-SA_HZ = 96.97   # pinned from tanpura analysis
+SA_HZ   = 96.97  # pinned from tanpura analysis
+MIN_DUR_FLOOR = 0.030  # 30ms — fastest realistic professional taan (~33 notes/sec)
 
 SARGAM = [
     (0,"S"),(100,"r"),(200,"R"),(300,"g"),(400,"G"),
@@ -219,12 +220,12 @@ rounds = [
     (0.06, 0.025, 0.01, 4, 8),
     (0.03, 0.012, 0.005, 3, 6),
 ]
-conf0, gap0, md0 = best_params
+conf0, gap0, md0 = best_params[0], best_params[1], max(best_params[2], MIN_DUR_FLOOR)
 for rnd, (dc,dg,dm,pop,mi) in enumerate(rounds, 1):
     bounds = [
         (max(0.50, conf0-dc), min(0.95, conf0+dc)),
         (max(0.01, gap0-dg),  gap0+dg),
-        (max(0.005, md0-dm),  md0+dm),
+        (max(MIN_DUR_FLOOR, md0-dm),  md0+dm),
     ]
     n_est = pop*(3+1)*(mi+1)
     print(f"\nRound {rnd}/3  ~{n_est} evals  "

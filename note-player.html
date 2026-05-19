@@ -101,7 +101,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'SF Mon
   <!-- file fallback -->
   <div id="file-area">
     <h2>Load notation file</h2>
-    <p>Could not auto-load <code>sargam_notation_v3_ICCR1854.txt</code><br/>Select it manually:</p>
+    <p>Could not auto-load <code>sargam_notation_cleaned.txt</code><br/>Select it manually:</p>
     <input type="file" id="file-input" accept=".txt,text/plain" onchange="loadFile(this)"/>
   </div>
 
@@ -737,7 +737,7 @@ async function init() {
   updateSamStatus();
 
   try {
-    const resp = await fetch('./sargam_notation_v3_ICCR1854.txt');
+    const resp = await fetch('./sargam_notation_cleaned.txt');
     if (!resp.ok) throw new Error();
     loadNotes(await resp.text());
   } catch(e) {

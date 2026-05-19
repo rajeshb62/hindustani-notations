@@ -446,7 +446,7 @@ async function init() {
 
   // Try to load notation
   try {
-    const resp = await fetch('./sargam_notation_v3_ICCR1854.txt');
+    const resp = await fetch('./sargam_notation_cleaned.txt');
     if (!resp.ok) throw new Error('not found');
     const text = await resp.text();
     notes = parseNotation(text);
