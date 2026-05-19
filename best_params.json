@@ -1,11 +1,13 @@
 {
   "previous_score": 0.902014,
-  "best_score": 0.902014,
+  "best_score": 0.848327,
+  "score_version": "v3_duration_weighted",
   "improvement_this_run": 0.0,
   "sa_hz": 96.97,
   "sa_source": "tanpura harmonic analysis (pinned)",
   "confidence_threshold": 0.6277,
   "gap_tolerance": 0.0748,
   "min_duration": 0.0096,
-  "note_count": 15134
+  "note_count": 15134,
+  "note_count_gte_30ms": 6951
 }

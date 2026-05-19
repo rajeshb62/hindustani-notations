@@ -3,7 +3,7 @@ SARGAM NOTATION — TANPURA-ANCHORED, POST-PROCESSED (postprocess_notation.py)
 Sa = 96.97 Hz  (tanpura harmonic analysis)
 Confidence = 0.6277  Gap = 0.0748s  Min duration (optimizer) = 0.0096s
 Post-process: same-swara bridge merge + 20ms floor filter
-Score = 0.90201  (0.65×chroma + 0.35×DTW, sub-cycle)
+Score = 0.84833  (0.65×chroma + 0.35×DTW, sub-cycle)
 Total notes: 9059
 
 KEY:
