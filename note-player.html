@@ -147,7 +147,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'SF Mon
 
 <script>
 // ── Note definitions ──────────────────────────────────────
-const SA_HZ = 98.0;
+const SA_HZ = 96.97;
 
 // Just intonation ratios from Sa
 const RATIOS = {
@@ -184,9 +184,36 @@ const MANDRA_BASE = new Set(['s','p']);
 function noteFreq(base, tivra, octave) {
   const key = tivra ? 'M+' : base;
   let ratio = RATIOS[key] || 1;
-  // mandra base notes (s, p) are already mandra octave
-  let oct = MANDRA_BASE.has(base) ? -1 : octave;
+  // Legacy lowercase s/p still mean one mandra octave unless explicit markers are present.
+  let oct = MANDRA_BASE.has(base) && octave === 0 ? -1 : octave;
   return SA_HZ * ratio * Math.pow(2, oct);
+}
+
+function parseRawNote(raw) {
+  const s = raw.trim();
+  const tivra = s.startsWith('M+');
+  const base = tivra ? 'M' : s[0];
+  const markerText = tivra ? s.slice(2) : s.slice(1);
+  if (!RATIOS[tivra ? 'M+' : base]) return null;
+  const up = (markerText.match(/'/g) || []).length;
+  const down = (markerText.match(/\./g) || []).length;
+  const explicitOctave = up - down;
+  const octave = MANDRA_BASE.has(base) && up === 0 && down === 0 ? -1 : explicitOctave;
+  return { base, tivra, octave, markerText };
+}
+
+function octaveMarker(octave) {
+  if (octave > 0) return "'".repeat(octave);
+  if (octave < 0) return '.'.repeat(Math.abs(octave));
+  return '';
+}
+
+function octaveName(octave) {
+  if (octave === 0) return 'madhya';
+  if (octave === 1) return 'taar';
+  if (octave === -1) return 'mandra';
+  if (octave > 1) return `ati-taar +${octave}`;
+  return `ati-mandra ${octave}`;
 }
 
 // ── Parse notation ────────────────────────────────────────
@@ -198,18 +225,16 @@ function parseNotation(text) {
     const time = parseInt(m[1]) * 60 + parseFloat(m[2]);
     const raw = m[3];
     const dur = parseFloat(m[4]);
-    const base = raw[0];
-    if (!RATIOS[base] && !(raw.startsWith('M+'))) continue;
-    const tivra = raw.includes('+');
-    const octave = raw.includes("'") ? 1 : (raw.includes('.') ? -1 : 0);
+    const parsed = parseRawNote(raw);
+    if (!parsed) continue;
+    const { base, tivra, octave } = parsed;
     const komal = KOMAL.has(base);
-    const mandra = MANDRA_BASE.has(base);
     const freq = noteFreq(base, tivra, octave);
     const color = NOTE_COLORS[base] || '#fff';
     const shortName = tivra ? 'M+' : base.toUpperCase();
-    const octLabel = (octave === 1 || raw.includes("'")) ? "'" : (octave === -1 || raw.includes('.') || mandra) ? '.' : '';
+    const octLabel = octaveMarker(octave);
     const fullName = (komal ? `${NOTE_NAMES[base]} komal` : tivra ? 'Ma tivra' : `${NOTE_NAMES[base] || base}`) +
-                     (octave === 1 ? ' — taar' : octave === -1 || mandra ? ' — mandra' : '');
+                     ` — ${octaveName(octave)}`;
     notes.push({ time, dur, raw, base, tivra, octave, komal, freq, color, shortName, octLabel, fullName });
   }
   return notes;
@@ -225,6 +250,7 @@ let dryGain = null;
 let wetGain = null;
 let fluteNodes = null;  // persistent osc nodes
 let fluteGain  = null;  // master envelope for the flute
+let lastRenderedFreq = null; // for interval-aware ultra-fast ornaments
 let volume = 0.5;
 
 function buildReverb() {
@@ -326,7 +352,7 @@ function initFlute(firstFreq) {
   noiseSource.start(now);
   lfo.start(now);
 
-  fluteNodes = { fund, harm2, noiseBP, lfoGain };
+  fluteNodes = { fund, harm2, harm2Gain, noiseBP, noiseGain, lfoGain };
 }
 
 function startFlute(firstFreq) {
@@ -337,6 +363,7 @@ function startFlute(firstFreq) {
   fluteNodes.fund.frequency.value = firstFreq;
   fluteNodes.harm2.frequency.value = firstFreq * 2;
   fluteNodes.noiseBP.frequency.value = firstFreq;
+  lastRenderedFreq = firstFreq;
   const now = audioCtx.currentTime;
   fluteGain.gain.cancelScheduledValues(now);
   fluteGain.gain.setValueAtTime(0, now);
@@ -346,17 +373,74 @@ function startFlute(firstFreq) {
   fluteNodes.lfoGain.gain.linearRampToValueAtTime(firstFreq * 0.003, now + 0.55);
 }
 
-function playNote(freq, dur) {
+function playNote(freq, dur, cluster = 0) {
   if (!fluteNodes) return;
   const now = audioCtx.currentTime;
-  // Glide pitch only — no amplitude manipulation between notes.
-  // Any gain scheduling causes discontinuity clicks; the pitch glide
-  // alone gives enough sense of note change for a legato flute sound.
-  const glide = Math.min(0.06, dur * 0.15);
-  fluteNodes.fund.frequency.setTargetAtTime(freq, now, glide);
-  fluteNodes.harm2.frequency.setTargetAtTime(freq * 2, now, glide);
-  fluteNodes.noiseBP.frequency.setTargetAtTime(freq, now, glide);
-  fluteNodes.lfoGain.gain.setTargetAtTime(freq * 0.003, now + glide, 0.08);
+
+  // Dense Hindustani note clusters should sound like connected kan/meend gestures,
+  // not like separate noisy re-articulated notes. For the very fastest passages
+  // we must *hit* the target pitch quickly; setTargetAtTime can lag behind on
+  // 10–20 ms notes, which sounds like tumbling. Use short explicit ramps there.
+  const ultraFast = dur < 0.026 || cluster >= 8;
+  const veryFast = dur < 0.045 || cluster >= 6;
+  const shortOrDense = dur < 0.12 || cluster >= 4;
+  const intervalCents = lastRenderedFreq ? Math.abs(1200 * Math.log2(freq / lastRenderedFreq)) : 0;
+  const octaveLeap = intervalCents > 650;
+  const arcadeRisk = octaveLeap && (ultraFast || veryFast);
+
+  let glide;
+  if (arcadeRisk) glide = 0.0005;
+  else if (ultraFast) glide = 0.0015;
+  else if (veryFast) glide = 0.0035;
+  else if (dur < 0.075 || cluster >= 5) glide = 0.006;
+  else if (dur < 0.15 || cluster >= 3) glide = 0.012;
+  else glide = Math.min(0.055, dur * 0.18);
+
+  const breath = arcadeRisk ? 0.0 : ultraFast ? 0.0 : veryFast ? 0.004 : shortOrDense ? 0.014 : 0.055;
+  const vibratoDepth = shortOrDense ? 0.0 : freq * 0.0025;
+  const harmonic = arcadeRisk ? 0.012 : ultraFast ? 0.024 : veryFast ? 0.035 : shortOrDense ? 0.052 : 0.08;
+  const wet = arcadeRisk ? 0.035 : ultraFast ? 0.08 : veryFast ? 0.12 : shortOrDense ? 0.20 : 0.35;
+  const dry = 1.0 - wet;
+  const phraseGain = arcadeRisk ? 0.36 : ultraFast ? 0.48 : veryFast ? 0.54 : 0.60;
+
+  function sharpRamp(param, target, rampSec) {
+    // cancelAndHold preserves continuity if supported; fallback is safe for Safari.
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now);
+    else param.cancelScheduledValues(now);
+    const start = Math.max(0.0001, param.value || target);
+    param.setValueAtTime(start, now);
+    if (arcadeRisk) {
+      // For octave-sized 10–40 ms ornaments, a swept ramp reads as an arcade chirp.
+      // Jump the oscillator pitch and let the lower gain make it a crisp kan touch.
+      param.setValueAtTime(Math.max(0.0001, target), now + 0.0005);
+    } else {
+      param.exponentialRampToValueAtTime(Math.max(0.0001, target), now + rampSec);
+    }
+  }
+
+  sharpRamp(fluteNodes.fund.frequency, freq, glide);
+  sharpRamp(fluteNodes.harm2.frequency, freq * 2, glide);
+  // Keep the noise filter close enough for color, but do not let it dominate ornaments.
+  fluteNodes.noiseBP.frequency.cancelScheduledValues(now);
+  fluteNodes.noiseBP.frequency.setTargetAtTime(freq, now, Math.max(0.006, glide));
+
+  fluteNodes.noiseGain.gain.cancelScheduledValues(now);
+  fluteNodes.noiseGain.gain.setTargetAtTime(breath, now, ultraFast ? 0.006 : 0.014);
+  fluteNodes.harm2Gain.gain.cancelScheduledValues(now);
+  fluteNodes.harm2Gain.gain.setTargetAtTime(harmonic, now, ultraFast ? 0.006 : 0.014);
+  fluteNodes.lfoGain.gain.cancelScheduledValues(now);
+  fluteNodes.lfoGain.gain.setTargetAtTime(vibratoDepth, now + glide, 0.05);
+
+  // Slightly tuck ultra-fast grace notes under the line so they sharpen the contour
+  // without sounding like loud separate notes.
+  if (fluteGain) fluteGain.gain.setTargetAtTime(phraseGain, now, arcadeRisk ? 0.004 : ultraFast ? 0.006 : 0.025);
+
+  // Reverb smear is a major cause of tumbling/noise in fast clusters.
+  if (dryGain && wetGain) {
+    dryGain.gain.setTargetAtTime(dry, now, arcadeRisk ? 0.006 : ultraFast ? 0.012 : 0.03);
+    wetGain.gain.setTargetAtTime(wet, now, arcadeRisk ? 0.006 : ultraFast ? 0.012 : 0.03);
+  }
+  lastRenderedFreq = freq;
 }
 
 function stopFlute() {
@@ -541,9 +625,11 @@ function showNote(idx) {
   bigNote.className = n.komal ? 'komal' : '';
   fullName.textContent = n.fullName;
   pos.textContent = `note ${idx + 1} / ${notes.length}`;
-  above.className = (n.octave === 1) ? 'on' : '';
+  above.textContent = n.octave > 0 ? '●'.repeat(n.octave) : '●';
+  above.className = (n.octave > 0) ? 'on' : '';
   above.style.color = n.color;
-  below.className = (n.octave === -1 || n.shortName === n.shortName.toLowerCase()) ? 'on' : '';
+  below.textContent = n.octave < 0 ? '●'.repeat(Math.abs(n.octave)) : '●';
+  below.className = (n.octave < 0 || n.shortName === n.shortName.toLowerCase()) ? 'on' : '';
   below.style.color = n.color;
   updateQueue(idx);
 }
@@ -575,8 +661,14 @@ function advanceNote() {
   const nextRecTime = noteIdx + 1 < notes.length ? notes[noteIdx + 1].time : n.time + 1.0;
   const gap = (nextRecTime - n.time) / speed;   // real gap to next note, speed-adjusted
   const soundDur = Math.min(gap, MAX_NOTE_SEC); // audible portion capped at 1s
+  const clusterStart = Math.max(0, noteIdx - 4);
+  const clusterEnd = Math.min(notes.length - 1, noteIdx + 4);
+  let cluster = 0;
+  for (let i = clusterStart; i <= clusterEnd; i++) {
+    if (Math.abs(notes[i].time - n.time) <= 0.24) cluster++;
+  }
 
-  playNote(n.freq, soundDur);
+  playNote(n.freq, soundDur, cluster);
 
   // Schedule auto-fadeout if gap exceeds cap
   if (noteOffTimer) clearTimeout(noteOffTimer);
@@ -636,6 +728,7 @@ function stopPlayback() {
   if (noteOffTimer) { clearTimeout(noteOffTimer); noteOffTimer = null; }
   clearBeatTimers();
   fluteAutoStopped = false;
+  lastRenderedFreq = null;
   stopFlute();
   document.getElementById('play-btn').textContent = '▶';
   document.getElementById('play-btn').classList.remove('playing');

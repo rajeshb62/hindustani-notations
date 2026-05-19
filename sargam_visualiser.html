@@ -353,14 +353,15 @@ const NOTE_DEFS = {
 
 function parseNoteStr(raw) {
   const s = raw.trim();
-  const base = s[0];
+  const tivra = s.startsWith('M+');
+  const base = tivra ? 'M' : s[0];
   const def = NOTE_DEFS[base];
   if (!def) return null;
-  const tivra = s.includes('+');
-  const hasTaar   = s.includes("'");
-  const hasMandra = s.replace(/M\+/g,'').includes('.');
-  const octave = hasTaar ? 1 : (hasMandra ? -1 : 0);
-  const octaveName = octave===1 ? 'Taar Saptak' : octave===-1 ? 'Mandra Saptak' : 'Madhya Saptak';
+  const markerText = tivra ? s.slice(2) : s.slice(1);
+  const up = (markerText.match(/'/g) || []).length;
+  const down = (markerText.match(/\./g) || []).length;
+  const octave = (base === 's' || base === 'p') && up === 0 && down === 0 ? -1 : up - down;
+  const octaveName = octave===0 ? 'Madhya Saptak' : octave===1 ? 'Taar Saptak' : octave===-1 ? 'Mandra Saptak' : octave>1 ? `Ati-Taar Saptak +${octave}` : `Ati-Mandra Saptak ${octave}`;
   const fullName = tivra ? `Ma Tivra — ${octaveName}` : `${def.full} — ${octaveName}`;
   // Muted version of color for komal
   const color = def.color;
@@ -577,9 +578,11 @@ function updateNote(idx) {
   noteChar.style.color = info.color;
 
   // Octave markers
-  octAbove.className = info.octave === 1 ? 'visible' : '';
+  octAbove.textContent = info.octave > 0 ? '●'.repeat(info.octave) : '●';
+  octAbove.className = info.octave > 0 ? 'visible' : '';
   octAbove.style.color = info.color;
-  octBelow.className = info.octave === -1 ? 'visible' : '';
+  octBelow.textContent = info.octave < 0 ? '●'.repeat(Math.abs(info.octave)) : '●';
+  octBelow.className = info.octave < 0 ? 'visible' : '';
   octBelow.style.color = info.color;
 
   // Note name

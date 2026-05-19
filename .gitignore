@@ -8,3 +8,8 @@ separated/
 .env
 tabla_clip_60s.wav
 no_vocals_clip_550_620.wav
+.vercel
+melody_improve_runs/
+melody_evaluation_report.json
+sargam_notation_cleaned.backup_*.txt
+note-player.keep_*.html

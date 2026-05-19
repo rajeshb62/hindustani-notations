@@ -2,6 +2,8 @@ venv/
 separated/
 __pycache__/
 *.pyc
+*.py
+*.md
 *.wav
 *.csv
 *.log
@@ -15,3 +17,7 @@ sargam_notation_v3_ICCR1854.txt
 pipeline.log
 vocals.f0.csv
 vocals.f0.vad.csv
+melody_improve_runs/
+melody_evaluation_report.json
+sargam_notation_cleaned.backup_*.txt
+note-player.keep_*.html
