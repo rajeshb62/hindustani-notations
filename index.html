@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Hindustani Music Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:#07060f;
+  color:#e8e0d8;
+  font-family:'Space Grotesk',sans-serif;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:40px 20px;
+}
+h1{
+  font-family:'EB Garamond',Georgia,serif;
+  font-size:clamp(2rem,6vw,3.2rem);
+  font-weight:400;
+  color:#fff;
+  letter-spacing:0.02em;
+  margin-bottom:8px;
+  text-align:center;
+}
+.subtitle{
+  font-size:0.85rem;
+  color:#6a6070;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  margin-bottom:56px;
+  text-align:center;
+}
+.cards{
+  display:flex;
+  gap:24px;
+  flex-wrap:wrap;
+  justify-content:center;
+  max-width:760px;
+  width:100%;
+}
+.card{
+  flex:1;
+  min-width:280px;
+  max-width:340px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;
+  padding:32px 28px;
+  text-decoration:none;
+  color:inherit;
+  transition:background 0.2s, border-color 0.2s, transform 0.2s;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.card:hover{
+  background:rgba(255,255,255,0.08);
+  border-color:rgba(255,255,255,0.18);
+  transform:translateY(-2px);
+}
+.card-icon{
+  font-family:'EB Garamond',Georgia,serif;
+  font-size:2.8rem;
+  font-weight:700;
+  line-height:1;
+}
+.card h2{
+  font-size:1rem;
+  font-weight:500;
+  letter-spacing:0.06em;
+  color:#fff;
+}
+.card p{
+  font-size:0.82rem;
+  color:#6a6070;
+  line-height:1.6;
+}
+.card-tag{
+  display:inline-block;
+  font-size:0.65rem;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  padding:3px 10px;
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,0.12);
+  color:rgba(232,224,216,0.4);
+  margin-top:auto;
+  width:fit-content;
+}
+</style>
+</head>
+<body>
+  <h1>Hindustani Music Tools</h1>
+  <p class="subtitle">ICCR-1854-AC — Vocal Analysis</p>
+  <div class="cards">
+    <a class="card" href="./sargam_visualiser.html">
+      <div class="card-icon" style="color:#E63946">S</div>
+      <h2>Sargam Visualiser</h2>
+      <p>Play the recording and watch each note light up in real-time. Mark the sam and navigate the full timeline.</p>
+      <span class="card-tag">Audio + Notation</span>
+    </a>
+    <a class="card" href="./note-player.html">
+      <div class="card-icon" style="color:#C77DFF">P</div>
+      <h2>Note Player</h2>
+      <p>Step through the extracted sargam notation, practice phrases, and explore the melodic structure.</p>
+      <span class="card-tag">Notation Only</span>
+    </a>
+  </div>
+</body>
+</html>
