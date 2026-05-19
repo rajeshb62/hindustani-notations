@@ -1,0 +1,17 @@
+venv/
+separated/
+__pycache__/
+*.pyc
+*.wav
+*.csv
+*.log
+*.egg-info/
+.env
+ICCR-1854-AC_SIDE_B.mp3
+clip_9m00s_to_9m40s.mp3
+OLD_WRONG_87Hz_v2.txt
+sargam_notation_improved.txt
+sargam_notation_v3_ICCR1854.txt
+pipeline.log
+vocals.f0.csv
+vocals.f0.vad.csv
