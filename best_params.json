@@ -1,0 +1,10 @@
+{
+  "baseline_score": 0.954685,
+  "best_score": 0.976882,
+  "improvement": 0.022197,
+  "sa_hz": 98.0,
+  "confidence_threshold": 0.65,
+  "gap_tolerance": 0.03,
+  "min_duration": 0.03,
+  "note_count": 7209
+}
