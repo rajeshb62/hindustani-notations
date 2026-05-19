@@ -1,11 +1,11 @@
 {
-  "previous_score": 0.976882,
-  "best_score": 0.913827,
-  "improvement_this_run": -0.063055,
-  "sa_hz": 92.525,
-  "confidence_threshold": 0.7136,
-  "gap_tolerance": 0.07,
-  "min_duration": 0.011,
-  "note_count": 11303,
-  "scoring": "sub-cycle(\u00d74) chroma + DTW"
+  "previous_score": 0.913827,
+  "best_score": 0.902014,
+  "improvement_this_run": 0.007536,
+  "sa_hz": 96.97,
+  "sa_source": "tanpura harmonic analysis (pinned)",
+  "confidence_threshold": 0.6277,
+  "gap_tolerance": 0.0748,
+  "min_duration": 0.0096,
+  "note_count": 15134
 }
