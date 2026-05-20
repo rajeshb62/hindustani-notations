@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Sargam Visualiser — Hindustani Classical Music</title>
+<title>Hindustani Music Player</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -28,6 +28,13 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space 
 #scrub::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#c8b89a;cursor:pointer;box-shadow:0 0 6px rgba(200,184,154,0.5)}
 #scrub::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#c8b89a;cursor:pointer;border:none}
 #time-display{font-family:'Space Grotesk',monospace;font-size:0.72rem;color:var(--text-dim);letter-spacing:0.05em}
+#mode-toggle-btn{padding:8px 13px;border-radius:999px;background:rgba(200,184,154,0.10);border:1px solid rgba(200,184,154,0.32);color:var(--accent);font-size:0.66rem;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all 0.15s}
+#mode-toggle-btn:hover{background:rgba(200,184,154,0.18);border-color:rgba(200,184,154,0.58)}
+#mode-toggle-btn.notes-mode{background:rgba(82,183,136,0.13);border-color:rgba(82,183,136,0.45);color:#9de0b8}
+#volume-wrap{display:flex;align-items:center;gap:7px;flex-shrink:0;color:var(--text-dim);font-size:0.72rem;letter-spacing:0.04em}
+#volume-slider{width:86px;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,0.12);outline:none;cursor:pointer}
+#volume-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#c8b89a;cursor:pointer;box-shadow:0 0 6px rgba(200,184,154,0.45)}
+#volume-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#c8b89a;cursor:pointer;border:none}
 
 /* ── FILE INPUTS (shown when auto-load fails) ─────── */
 #file-inputs{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:40px;text-align:center}
@@ -143,6 +150,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space 
 /* ── RESPONSIVE ────────────────────────────────────── */
 @media(max-width:480px){
   #audio-bar{padding:8px 12px}
+  #mode-toggle-btn{padding:7px 9px;font-size:0.58rem}
+  #volume-wrap{font-size:0.6rem;gap:5px}
+  #volume-slider{width:54px}
   #note-char{font-size:clamp(72px,22vw,130px)}
   .t-note{min-width:44px}
   .t-note-char{font-size:1.1rem}
@@ -160,6 +170,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space 
       <input id="scrub" type="range" min="0" max="100" step="0.01" value="0" oninput="onScrub(this.value)"/>
       <div id="time-display">0:00 / 0:00</div>
     </div>
+    <button id="mode-toggle-btn" onclick="switchPlaybackMode()" title="Switch between original recording and notation playback">Play Notes</button>
+    <label id="volume-wrap" title="Volume for recording and notation playback">Vol
+      <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.8" oninput="setUnifiedVolume(this.value)"/>
+    </label>
   </div>
 
   <!-- File input fallback -->
@@ -243,7 +257,7 @@ function persistSams() {
 }
 
 function markSam() {
-  const t = Math.round(audio.currentTime * 100) / 100;
+  const t = Math.round(getTransportTime() * 100) / 100;
   if (samHistory.some(s => Math.abs(s - t) < 0.5)) return;  // skip near-duplicates
   samHistory.push(t);
   samTimes = [...samHistory].sort((a, b) => a - b);
@@ -327,7 +341,7 @@ function renderSamMarks() {
     tick.style.left = `${(t / dur) * 100}%`;
     tick.dataset.time = fmtTime(t);
     tick.title = `Sam ${i + 1}: ${fmtTime(t)}`;
-    tick.onclick = (e) => { e.stopPropagation(); audio.currentTime = t; };
+    tick.onclick = (e) => { e.stopPropagation(); seekTransport(t); };
     bar.appendChild(tick);
   });
 }
@@ -351,6 +365,21 @@ const NOTE_DEFS = {
   'n': { label:'n', name:'Ni',  full:'Ni Komal',         color:'#C77DFF', komal:true  },
 };
 
+const SA_HZ = 96.97;
+const RATIOS = {
+  'S':1, 'r':256/243, 'R':9/8, 'g':32/27, 'G':5/4,
+  'M':4/3, 'M+':45/32, 'P':3/2, 'd':128/81, 'D':5/3,
+  'n':16/9, 'N':15/8, 's':1, 'p':3/2,
+};
+const MANDRA_BASE = new Set(['s','p']);
+
+function noteFreq(base, tivra, octave) {
+  const key = tivra ? 'M+' : base;
+  const ratio = RATIOS[key] || 1;
+  const oct = MANDRA_BASE.has(base) && octave === 0 ? -1 : octave;
+  return SA_HZ * ratio * Math.pow(2, oct);
+}
+
 function parseNoteStr(raw) {
   const s = raw.trim();
   const tivra = s.startsWith('M+');
@@ -365,7 +394,8 @@ function parseNoteStr(raw) {
   const fullName = tivra ? `Ma Tivra — ${octaveName}` : `${def.full} — ${octaveName}`;
   // Muted version of color for komal
   const color = def.color;
-  return { base, def, tivra, octave, komal:def.komal, color, name:def.name, fullName, raw:s };
+  const freq = noteFreq(base, tivra, octave);
+  return { base, def, tivra, octave, komal:def.komal, color, name:def.name, fullName, raw:s, freq };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -421,15 +451,220 @@ function parseNotation(text) {
 // ═══════════════════════════════════════════════════════════
 let notes = [];
 let currentNoteIdx = -1;
-let barAnimFrame = null;
-let barStartTime = null;
-let barDuration = 0;
+let playbackMode = 'audio'; // 'audio' = original recording, 'notes' = synthesized notation
+let isTransportPlaying = false;
+let transportTime = 0;
+let transportWallStart = 0;
+let transportRecStart = 0;
+let notationNoteIdx = 0;
+let notationTimer = null;
+let noteOffTimer = null;
+let fluteAutoStopped = false;
+let uiFrame = null;
+let nextSamIdx = 0;
+let beatTimers = [];
+const speed = 1.0;
 const audio = document.getElementById('audio');
+
+
+// ═══════════════════════════════════════════════════════════
+// NOTATION SYNTH ENGINE — adapted from note-player.html
+// ═══════════════════════════════════════════════════════════
+let audioCtx = null;
+let masterGain = null;
+let reverbNode = null;
+let dryGain = null;
+let wetGain = null;
+let fluteNodes = null;
+let fluteGain = null;
+let lastRenderedFreq = null;
+let unifiedVolume = 0.8;
+let synthVolume = unifiedVolume;
+
+function buildReverb() {
+  const sr = audioCtx.sampleRate;
+  const len = sr * 2.2;
+  const ir = audioCtx.createBuffer(2, len, sr);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c);
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      const decay = Math.exp(-t * 3.5);
+      const early = t < 0.03 ? 0.5 * Math.exp(-t * 80) : 0;
+      d[i] = (Math.random() * 2 - 1) * (decay + early);
+    }
+  }
+  const conv = audioCtx.createConvolver();
+  conv.buffer = ir;
+  return conv;
+}
+
+function ensureSynthAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = unifiedVolume;
+  dryGain = audioCtx.createGain(); dryGain.gain.value = 0.65;
+  wetGain = audioCtx.createGain(); wetGain.gain.value = 0.35;
+  reverbNode = buildReverb();
+  dryGain.connect(masterGain);
+  wetGain.connect(masterGain);
+  reverbNode.connect(wetGain);
+  masterGain.connect(audioCtx.destination);
+}
+
+function setUnifiedVolume(value) {
+  unifiedVolume = Math.max(0, Math.min(1, parseFloat(value)));
+  if (Number.isNaN(unifiedVolume)) unifiedVolume = 0.8;
+  synthVolume = unifiedVolume;
+  audio.volume = unifiedVolume;
+  if (masterGain) masterGain.gain.value = unifiedVolume;
+}
+
+function initFlute(firstFreq) {
+  ensureSynthAudio();
+  if (fluteNodes) return;
+  const now = audioCtx.currentTime;
+  const fund = audioCtx.createOscillator();
+  fund.type = 'sine'; fund.frequency.value = firstFreq;
+  const harm2 = audioCtx.createOscillator();
+  harm2.type = 'sine'; harm2.frequency.value = firstFreq * 2;
+  const harm2Gain = audioCtx.createGain(); harm2Gain.gain.value = 0.08;
+  const nb = audioCtx.createBuffer(1, audioCtx.sampleRate * 3, audioCtx.sampleRate);
+  const nd = nb.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  const noiseSource = audioCtx.createBufferSource();
+  noiseSource.buffer = nb; noiseSource.loop = true;
+  const noiseBP = audioCtx.createBiquadFilter();
+  noiseBP.type = 'bandpass'; noiseBP.frequency.value = firstFreq; noiseBP.Q.value = 1.5;
+  const noiseGain = audioCtx.createGain(); noiseGain.gain.value = 0.06;
+  const lfo = audioCtx.createOscillator(); lfo.frequency.value = 5.5;
+  const lfoGain = audioCtx.createGain(); lfoGain.gain.value = 0;
+  const warmth = audioCtx.createBiquadFilter(); warmth.type = 'lowpass'; warmth.frequency.value = 3000; warmth.Q.value = 0.5;
+  fluteGain = audioCtx.createGain(); fluteGain.gain.value = 0;
+  fund.connect(fluteGain);
+  harm2.connect(harm2Gain); harm2Gain.connect(fluteGain);
+  noiseSource.connect(noiseBP); noiseBP.connect(noiseGain); noiseGain.connect(fluteGain);
+  lfo.connect(lfoGain); lfoGain.connect(fund.frequency);
+  fluteGain.connect(warmth); warmth.connect(dryGain); warmth.connect(reverbNode);
+  fund.start(now); harm2.start(now); noiseSource.start(now); lfo.start(now);
+  fluteNodes = { fund, harm2, harm2Gain, noiseBP, noiseGain, lfoGain };
+}
+
+function startFlute(firstFreq) {
+  ensureSynthAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  initFlute(firstFreq);
+  fluteNodes.fund.frequency.value = firstFreq;
+  fluteNodes.harm2.frequency.value = firstFreq * 2;
+  fluteNodes.noiseBP.frequency.value = firstFreq;
+  lastRenderedFreq = firstFreq;
+  const now = audioCtx.currentTime;
+  fluteGain.gain.cancelScheduledValues(now);
+  fluteGain.gain.setValueAtTime(0, now);
+  fluteGain.gain.linearRampToValueAtTime(0.6, now + 0.22);
+  fluteNodes.lfoGain.gain.setValueAtTime(0, now);
+  fluteNodes.lfoGain.gain.linearRampToValueAtTime(firstFreq * 0.003, now + 0.55);
+}
+
+function playSynthNote(freq, dur, cluster = 0) {
+  if (!fluteNodes) return;
+  const now = audioCtx.currentTime;
+  const ultraFast = dur < 0.026 || cluster >= 8;
+  const veryFast = dur < 0.045 || cluster >= 6;
+  const shortOrDense = dur < 0.12 || cluster >= 4;
+  const intervalCents = lastRenderedFreq ? Math.abs(1200 * Math.log2(freq / lastRenderedFreq)) : 0;
+  const arcadeRisk = intervalCents > 650 && (ultraFast || veryFast);
+  let glide;
+  if (arcadeRisk) glide = 0.0005;
+  else if (ultraFast) glide = 0.0015;
+  else if (veryFast) glide = 0.0035;
+  else if (dur < 0.075 || cluster >= 5) glide = 0.006;
+  else if (dur < 0.15 || cluster >= 3) glide = 0.012;
+  else glide = Math.min(0.055, dur * 0.18);
+  const breath = arcadeRisk ? 0.0 : ultraFast ? 0.0 : veryFast ? 0.004 : shortOrDense ? 0.014 : 0.055;
+  const vibratoDepth = shortOrDense ? 0.0 : freq * 0.0025;
+  const harmonic = arcadeRisk ? 0.012 : ultraFast ? 0.024 : veryFast ? 0.035 : shortOrDense ? 0.052 : 0.08;
+  const wet = arcadeRisk ? 0.035 : ultraFast ? 0.08 : veryFast ? 0.12 : shortOrDense ? 0.20 : 0.35;
+  const dry = 1.0 - wet;
+  const phraseGain = arcadeRisk ? 0.36 : ultraFast ? 0.48 : veryFast ? 0.54 : 0.60;
+  function sharpRamp(param, target, rampSec) {
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now); else param.cancelScheduledValues(now);
+    const start = Math.max(0.0001, param.value || target);
+    param.setValueAtTime(start, now);
+    if (arcadeRisk) param.setValueAtTime(Math.max(0.0001, target), now + 0.0005);
+    else param.exponentialRampToValueAtTime(Math.max(0.0001, target), now + rampSec);
+  }
+  sharpRamp(fluteNodes.fund.frequency, freq, glide);
+  sharpRamp(fluteNodes.harm2.frequency, freq * 2, glide);
+  fluteNodes.noiseBP.frequency.cancelScheduledValues(now);
+  fluteNodes.noiseBP.frequency.setTargetAtTime(freq, now, Math.max(0.006, glide));
+  fluteNodes.noiseGain.gain.cancelScheduledValues(now);
+  fluteNodes.noiseGain.gain.setTargetAtTime(breath, now, ultraFast ? 0.006 : 0.014);
+  fluteNodes.harm2Gain.gain.cancelScheduledValues(now);
+  fluteNodes.harm2Gain.gain.setTargetAtTime(harmonic, now, ultraFast ? 0.006 : 0.014);
+  fluteNodes.lfoGain.gain.cancelScheduledValues(now);
+  fluteNodes.lfoGain.gain.setTargetAtTime(vibratoDepth, now + glide, 0.05);
+  if (fluteGain) fluteGain.gain.setTargetAtTime(phraseGain, now, arcadeRisk ? 0.004 : ultraFast ? 0.006 : 0.025);
+  if (dryGain && wetGain) {
+    dryGain.gain.setTargetAtTime(dry, now, arcadeRisk ? 0.006 : ultraFast ? 0.012 : 0.03);
+    wetGain.gain.setTargetAtTime(wet, now, arcadeRisk ? 0.006 : ultraFast ? 0.012 : 0.03);
+  }
+  lastRenderedFreq = freq;
+}
+
+function stopFlute() {
+  if (!fluteGain || !audioCtx) return;
+  const now = audioCtx.currentTime;
+  const g = fluteGain.gain;
+  const cv = g.value;
+  g.cancelScheduledValues(now);
+  g.setValueAtTime(cv, now);
+  g.linearRampToValueAtTime(0, now + 0.30);
+}
+
+function playBeat() {
+  ensureSynthAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sine'; osc.frequency.setValueAtTime(120, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+  osc2.type = 'sine'; osc2.frequency.setValueAtTime(240, now); osc2.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+  const g2 = audioCtx.createGain(); g2.gain.value = 0.35;
+  g.gain.setValueAtTime(1.2, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+  osc.connect(g); osc2.connect(g2); g2.connect(g); g.connect(masterGain);
+  osc.start(now); osc.stop(now + 0.3); osc2.start(now); osc2.stop(now + 0.3);
+}
+
+function samIdxFrom(t) {
+  let lo = 0, hi = samTimes.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (samTimes[mid] < t) lo = mid + 1; else hi = mid; }
+  return lo;
+}
+
+function clearBeatTimers() {
+  beatTimers.forEach(id => clearTimeout(id));
+  beatTimers = [];
+}
+
+function scheduleSamBeats(fromRecTime, toRecTime) {
+  while (nextSamIdx < samTimes.length && samTimes[nextSamIdx] < toRecTime) {
+    const st = samTimes[nextSamIdx];
+    if (st >= fromRecTime) {
+      const delay = Math.max(0, transportWallStart + (st - transportRecStart) * 1000 / speed - Date.now());
+      beatTimers.push(setTimeout(playBeat, delay));
+    }
+    nextSamIdx++;
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 // INIT — auto-load files
 // ═══════════════════════════════════════════════════════════
 async function init() {
+  setUnifiedVolume(document.getElementById('volume-slider')?.value || unifiedVolume);
   // Try to auto-load sam_times_manual.json (takes priority over localStorage)
   try {
     const resp = await fetch('./sam_times_manual.json');
@@ -470,6 +705,8 @@ async function init() {
     document.getElementById('scrub').max = audio.duration;
     renderSamMarks();
   };
+  updateModeButton();
+  if (!uiFrame) uiFrame = requestAnimationFrame(updateTransportUI);
 }
 
 function showFileInputs() {
@@ -528,6 +765,18 @@ function findCurrentNote(t) {
   // Check if within duration (with small tolerance for gaps)
   if (t < n.time + n.duration + 0.05) return found;
   return -2; // in a gap/silence
+}
+
+function findNoteIndexAtOrAfter(t) {
+  if (notes.length === 0) return 0;
+  const current = findCurrentNote(t);
+  if (current >= 0) return current;
+  let lo = 0, hi = notes.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (notes[mid].time < t) lo = mid + 1; else hi = mid;
+  }
+  return Math.min(lo, notes.length - 1);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -631,7 +880,7 @@ function buildTimeline() {
     div.className = 't-note future';
     div.dataset.idx = i;
     div.style.color = info.color;
-    div.onclick = () => { audio.currentTime = n.time; if(audio.paused) audio.play(); };
+    div.onclick = () => { seekTransport(n.time); if (!isTransportPlaying) togglePlay(); };
 
     // Octave indicator text
     const octText = info.octave === 1 ? "'" : info.octave === -1 ? '.' : '';
@@ -663,63 +912,205 @@ function updateTimelineHighlight(idx) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// AUDIO EVENT HANDLERS
+// UNIFIED TRANSPORT — original audio and notation synth share one timeline
 // ═══════════════════════════════════════════════════════════
-audio.addEventListener('timeupdate', () => {
-  const t = audio.currentTime;
-  const idx = findCurrentNote(t);
-  if (idx >= 0) updateNote(idx);
-  else showSilence();
-  updateTimeDisplay();
-  checkSamFlash(t);
-  // Update scrub
-  if (!isNaN(audio.duration)) {
-    document.getElementById('scrub').value = t;
+function getTransportDuration() {
+  if (audio.duration && !isNaN(audio.duration)) return audio.duration;
+  if (notes.length) return notes[notes.length - 1].time + (notes[notes.length - 1].duration || 0);
+  return 0;
+}
+
+function getTransportTime() {
+  if (playbackMode === 'audio') return audio.currentTime || transportTime || 0;
+  if (isTransportPlaying) {
+    const dur = getTransportDuration();
+    transportTime = transportRecStart + (Date.now() - transportWallStart) / 1000 * speed;
+    if (dur) transportTime = Math.min(transportTime, dur);
   }
-});
+  return transportTime || 0;
+}
 
-audio.addEventListener('ended', () => {
-  document.getElementById('play-btn').textContent = '▶';
-});
+function updateModeButton() {
+  const btn = document.getElementById('mode-toggle-btn');
+  if (!btn) return;
+  if (playbackMode === 'audio') {
+    btn.textContent = 'Play Notes';
+    btn.title = 'Switch to synthesized notation playback at this timestamp';
+    btn.classList.remove('notes-mode');
+  } else {
+    btn.textContent = 'Play Recording';
+    btn.title = 'Switch back to the original Hindustani recording at this timestamp';
+    btn.classList.add('notes-mode');
+  }
+}
 
-audio.addEventListener('play', () => {
-  document.getElementById('play-btn').textContent = '⏸';
-});
-audio.addEventListener('pause', () => {
-  document.getElementById('play-btn').textContent = '▶';
-});
+function updatePlayButton() {
+  document.getElementById('play-btn').textContent = isTransportPlaying ? '⏸' : '▶';
+}
 
 function updateTimeDisplay() {
-  const cur = audio.currentTime || 0;
-  const dur = audio.duration || 0;
+  const cur = getTransportTime();
+  const dur = getTransportDuration();
   document.getElementById('time-display').textContent = `${fmtTime(cur)} / ${fmtTime(dur)}`;
 }
 
+function updateTransportUI() {
+  const t = getTransportTime();
+  const idx = findCurrentNote(t);
+  if (idx >= 0) updateNote(idx); else showSilence();
+  updateTimeDisplay();
+  checkSamFlash(t);
+  const scrub = document.getElementById('scrub');
+  const dur = getTransportDuration();
+  if (dur && !isNaN(dur)) {
+    scrub.max = dur;
+    scrub.value = Math.min(t, dur);
+  }
+  if (isTransportPlaying && playbackMode === 'notes' && dur && t >= dur - 0.05) {
+    pauseTransport();
+  }
+  uiFrame = requestAnimationFrame(updateTransportUI);
+}
+
 function fmtTime(s) {
+  s = Math.max(0, s || 0);
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${String(sec).padStart(2,'0')}`;
 }
 
-// ═══════════════════════════════════════════════════════════
-// CONTROLS
-// ═══════════════════════════════════════════════════════════
+function startNotationPlayback(fromTime = getTransportTime()) {
+  if (notes.length === 0) return;
+  stopNotationPlayback(false);
+  notationNoteIdx = findNoteIndexAtOrAfter(fromTime);
+  const first = notes[notationNoteIdx];
+  transportTime = fromTime;
+  transportRecStart = fromTime;
+  transportWallStart = Date.now();
+  nextSamIdx = samIdxFrom(fromTime);
+  startFlute(first.info.freq);
+  isTransportPlaying = true;
+  scheduleNotationAdvance();
+}
+
+function scheduleNotationAdvance() {
+  if (!isTransportPlaying || playbackMode !== 'notes' || notationNoteIdx >= notes.length) return;
+  const n = notes[notationNoteIdx];
+  const nowT = getTransportTime();
+  const wait = Math.max(0, (n.time - nowT) * 1000 / speed);
+  notationTimer = setTimeout(() => {
+    if (!isTransportPlaying || playbackMode !== 'notes') return;
+    const note = notes[notationNoteIdx];
+    const nextRecTime = notationNoteIdx + 1 < notes.length ? notes[notationNoteIdx + 1].time : note.time + 1.0;
+    const gap = (nextRecTime - note.time) / speed;
+    const soundDur = Math.min(gap, 1.0);
+    let cluster = 0;
+    const clusterStart = Math.max(0, notationNoteIdx - 4);
+    const clusterEnd = Math.min(notes.length - 1, notationNoteIdx + 4);
+    for (let i = clusterStart; i <= clusterEnd; i++) if (Math.abs(notes[i].time - note.time) <= 0.24) cluster++;
+    playSynthNote(note.info.freq, soundDur, cluster);
+    if (noteOffTimer) clearTimeout(noteOffTimer);
+    if (gap > 1.0) {
+      noteOffTimer = setTimeout(() => {
+        if (isTransportPlaying && playbackMode === 'notes') { fluteAutoStopped = true; stopFlute(); }
+      }, soundDur * 1000);
+    } else if (fluteAutoStopped && fluteGain) {
+      fluteAutoStopped = false;
+      const now = audioCtx.currentTime;
+      fluteGain.gain.cancelScheduledValues(now);
+      fluteGain.gain.setValueAtTime(fluteGain.gain.value, now);
+      fluteGain.gain.linearRampToValueAtTime(0.6, now + 0.12);
+    }
+    scheduleSamBeats(note.time, nextRecTime);
+    notationNoteIdx++;
+    if (notationNoteIdx < notes.length) scheduleNotationAdvance(); else pauseTransport();
+  }, wait);
+}
+
+function stopNotationPlayback(updatePlaying = true) {
+  if (notationTimer) { clearTimeout(notationTimer); notationTimer = null; }
+  if (noteOffTimer) { clearTimeout(noteOffTimer); noteOffTimer = null; }
+  clearBeatTimers();
+  fluteAutoStopped = false;
+  lastRenderedFreq = null;
+  stopFlute();
+  if (updatePlaying) isTransportPlaying = false;
+}
+
+function playTransport() {
+  if (playbackMode === 'audio') {
+    audio.currentTime = getTransportTime();
+    audio.play();
+    isTransportPlaying = true;
+  } else {
+    startNotationPlayback(getTransportTime());
+  }
+  updatePlayButton();
+}
+
+function pauseTransport() {
+  transportTime = getTransportTime();
+  if (playbackMode === 'audio') audio.pause();
+  else stopNotationPlayback(false);
+  isTransportPlaying = false;
+  updatePlayButton();
+}
+
 function togglePlay() {
-  if (audio.paused) audio.play();
-  else audio.pause();
+  if (isTransportPlaying) pauseTransport(); else playTransport();
+}
+
+function seekTransport(t) {
+  const dur = getTransportDuration();
+  transportTime = Math.max(0, Math.min(parseFloat(t) || 0, dur || parseFloat(t) || 0));
+  lastFlashedSamIdx = -1;
+  if (playbackMode === 'audio') {
+    audio.currentTime = transportTime;
+  } else if (isTransportPlaying) {
+    startNotationPlayback(transportTime);
+  }
+  currentNoteIdx = -999;
 }
 
 function onScrub(val) {
-  audio.currentTime = parseFloat(val);
-  lastFlashedSamIdx = -1;
+  seekTransport(parseFloat(val));
 }
+
+function switchPlaybackMode() {
+  const wasPlaying = isTransportPlaying;
+  const t = getTransportTime();
+  if (playbackMode === 'audio') {
+    audio.pause();
+    playbackMode = 'notes';
+    transportTime = t;
+    if (wasPlaying) startNotationPlayback(t);
+  } else {
+    stopNotationPlayback(false);
+    playbackMode = 'audio';
+    transportTime = t;
+    audio.currentTime = t;
+    if (wasPlaying) { audio.play(); isTransportPlaying = true; }
+  }
+  isTransportPlaying = wasPlaying;
+  updateModeButton();
+  updatePlayButton();
+}
+
+audio.addEventListener('ended', () => {
+  transportTime = getTransportDuration();
+  isTransportPlaying = false;
+  updatePlayButton();
+});
+
+audio.addEventListener('play', () => { if (playbackMode === 'audio') { isTransportPlaying = true; updatePlayButton(); } });
+audio.addEventListener('pause', () => { if (playbackMode === 'audio' && !audio.ended) { isTransportPlaying = false; transportTime = audio.currentTime || transportTime; updatePlayButton(); } });
 
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
-  if (e.code === 'Space')      { e.preventDefault(); togglePlay(); }
-  if (e.code === 'KeyS')       { e.preventDefault(); markSam(); }
-  if (e.code === 'ArrowRight') audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
-  if (e.code === 'ArrowLeft')  audio.currentTime = Math.max(0, audio.currentTime - 5);
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  if (e.code === 'KeyS') { e.preventDefault(); markSam(); }
+  if (e.code === 'ArrowRight') seekTransport(Math.min(getTransportDuration(), getTransportTime() + 5));
+  if (e.code === 'ArrowLeft') seekTransport(Math.max(0, getTransportTime() - 5));
 });
 
 // ═══════════════════════════════════════════════════════════
