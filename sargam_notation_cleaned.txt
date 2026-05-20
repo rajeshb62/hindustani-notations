@@ -11672,7 +11672,7 @@ FORMAT: [MM:SS.ss]  note  duration  full_name
   [21:57.42]  g'      0.110s   Ga komal — taar saptak
   [21:57.53]  R'      0.050s   Re shuddh — taar saptak
   [21:57.58]  r'      0.070s   Re komal — taar saptak
-  [21:57.66]  S''     0.300s   Sa — ati-taar saptak +2
+  [21:57.66]  S'      0.300s   Sa — taar saptak
   [21:58.04]  n'      0.660s   Ni komal — taar saptak
   [21:58.77]  r''     0.040s   Re komal — ati-taar saptak +2
   [21:58.90]  g''     0.040s   Ga komal — ati-taar saptak +2
@@ -13896,7 +13896,7 @@ COMPACT NOTATION (16 notes per line)
 [21:50.8]  n'    D'    n'    D'    n'    D'    n'    n'    d'    D'    n'    D'    d'    D'    n'    N'  
 [21:52.2]  S''   n'    S''   D'    R''   g''   G'    M'    g''   P'    d'    D'    n'    P'    M'    G'  
 [21:54.5]  R''   M+'   g''   n'    d'    D'    n'    D'    d'    S''   P'    n'    N'    S''   N'    n'  
-[21:56.3]  D'    n'    D'    d'    P'    d'    M'    G'    M'    G'    M'    G'    g'    R'    r'    S'' 
+[21:56.3]  D'    n'    D'    d'    P'    d'    M'    G'    M'    G'    M'    G'    g'    R'    r'    S'  
 [21:58.0]  n'    r''   g''   S''   r''   G'    R''   M'    M+'   M'    n'    D'    n'    D'    n'    D'  
 [22:02.3]  D'    D'    d'    M'    G'    M'    M+'   d'    D'    D'    D'    n'    D'    n'    n'    D'  
 [22:04.6]  d'    D'    n'    D'    d'    D'    N'    S''   n'    D'    d'    P'    G'    M'    G'    M'  
