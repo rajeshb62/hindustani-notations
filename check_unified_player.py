@@ -21,6 +21,9 @@ REQUIRED_SNIPPETS = [
     'function setUnifiedVolume',
     'audio.volume = unifiedVolume',
     'masterGain.gain.value = unifiedVolume',
+    'id="rewind-5-btn"',
+    'function rewindTransport',
+    'seekTransport(Math.max(0, getTransportTime() - seconds))',
 ]
 
 VERCELIGNORE = Path('.vercelignore').read_text(encoding='utf-8') if Path('.vercelignore').exists() else ''
