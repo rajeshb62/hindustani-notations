@@ -4,6 +4,8 @@ from pathlib import Path
 import re
 
 HTML = Path('sargam_visualiser.html').read_text(encoding='utf-8')
+INDEX_HTML = Path('index.html').read_text(encoding='utf-8')
+NOTE_PLAYER_HTML = Path('note-player.html').read_text(encoding='utf-8')
 
 REQUIRED_SNIPPETS = [
     'id="mode-toggle-btn"',
@@ -40,5 +42,9 @@ assert not missing, 'Missing integrated-player hooks: ' + ', '.join(missing)
 assert re.search(r'function\s+togglePlay\s*\(\)\s*{[^}]*isTransportPlaying', HTML, re.S), 'togglePlay should use unified transport state'
 assert 'audio.addEventListener(\'timeupdate\'' not in HTML and 'audio.addEventListener("timeupdate"' not in HTML, 'UI updates should not depend solely on audio timeupdate'
 assert 'div.onclick = () => { seekTransport(n.time); if (!isTransportPlaying) togglePlay(); };' in HTML, 'timeline clicks should use unified transport seek'
+
+assert 'http-equiv="refresh"' in INDEX_HTML and 'sargam_visualiser.html' in INDEX_HTML, 'index.html should land on the unified Hindustani Music Player'
+assert 'note-player.html' not in INDEX_HTML, 'landing page should not link to retired note-player.html'
+assert 'http-equiv="refresh"' in NOTE_PLAYER_HTML and 'sargam_visualiser.html' in NOTE_PLAYER_HTML, 'retired note-player.html should redirect to unified player'
 
 print('unified player static checks passed')
