@@ -33,6 +33,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space 
 #mode-toggle-btn{padding:8px 13px;border-radius:999px;background:rgba(200,184,154,0.10);border:1px solid rgba(200,184,154,0.32);color:var(--accent);font-size:0.66rem;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all 0.15s}
 #mode-toggle-btn:hover{background:rgba(200,184,154,0.18);border-color:rgba(200,184,154,0.58)}
 #mode-toggle-btn.notes-mode{background:rgba(82,183,136,0.13);border-color:rgba(82,183,136,0.45);color:#9de0b8}
+#sa-loop-btn{padding:8px 13px;border-radius:999px;background:rgba(230,57,70,0.10);border:1px solid rgba(230,57,70,0.35);color:#f19aa1;font-size:0.66rem;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all 0.15s}
+#sa-loop-btn:hover{background:rgba(230,57,70,0.18);border-color:rgba(230,57,70,0.58)}
+#sa-loop-btn.active{background:rgba(230,57,70,0.24);border-color:rgba(230,57,70,0.75);color:#ffd6da;box-shadow:0 0 12px rgba(230,57,70,0.18)}
 #volume-wrap{display:flex;align-items:center;gap:7px;flex-shrink:0;color:var(--text-dim);font-size:0.72rem;letter-spacing:0.04em}
 #volume-slider{width:86px;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,0.12);outline:none;cursor:pointer}
 #volume-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#c8b89a;cursor:pointer;box-shadow:0 0 6px rgba(200,184,154,0.45)}
@@ -153,6 +156,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space 
 @media(max-width:480px){
   #audio-bar{padding:8px 12px}
   #mode-toggle-btn{padding:7px 9px;font-size:0.58rem}
+  #sa-loop-btn{padding:7px 9px;font-size:0.58rem}
   #rewind-5-btn{height:30px;padding:0 8px;font-size:0.58rem}
   #volume-wrap{font-size:0.6rem;gap:5px}
   #volume-slider{width:54px}
@@ -175,6 +179,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space 
       <div id="time-display">0:00 / 0:00</div>
     </div>
     <button id="mode-toggle-btn" onclick="switchPlaybackMode()" title="Switch between original recording and notation playback">Play Notes</button>
+    <button id="sa-loop-btn" onclick="toggleSaLoop()" title="Keep the track Sa sounding while you compare recording and notes">Sa Loop</button>
     <label id="volume-wrap" title="Volume for recording and notation playback">Vol
       <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.8" oninput="setUnifiedVolume(this.value)"/>
     </label>
@@ -482,6 +487,9 @@ let dryGain = null;
 let wetGain = null;
 let fluteNodes = null;
 let fluteGain = null;
+let saLoopGain = null;
+let saLoopNodes = null;
+let saLoopActive = false;
 let lastRenderedFreq = null;
 let unifiedVolume = 0.8;
 let synthVolume = unifiedVolume;
@@ -640,6 +648,75 @@ function stopFlute() {
   g.cancelScheduledValues(now);
   g.setValueAtTime(cv, now);
   g.linearRampToValueAtTime(0, now + 0.30);
+}
+
+function initSaLoop() {
+  ensureSynthAudio();
+  if (saLoopNodes) return;
+  const now = audioCtx.currentTime;
+  const base = audioCtx.createOscillator();
+  const octave = audioCtx.createOscillator();
+  const fifth = audioCtx.createOscillator();
+  const shimmer = audioCtx.createOscillator();
+  const baseGain = audioCtx.createGain();
+  const octaveGain = audioCtx.createGain();
+  const fifthGain = audioCtx.createGain();
+  const shimmerGain = audioCtx.createGain();
+  const warmth = audioCtx.createBiquadFilter();
+  saLoopGain = audioCtx.createGain();
+
+  base.type = 'sine';
+  octave.type = 'sine';
+  fifth.type = 'sine';
+  shimmer.type = 'triangle';
+  base.frequency.value = SA_HZ;
+  octave.frequency.value = SA_HZ * 2;
+  fifth.frequency.value = SA_HZ * 3 / 2;
+  shimmer.frequency.value = SA_HZ * 4;
+  baseGain.gain.value = 0.42;
+  octaveGain.gain.value = 0.18;
+  fifthGain.gain.value = 0.08;
+  shimmerGain.gain.value = 0.025;
+  warmth.type = 'lowpass';
+  warmth.frequency.value = 900;
+  warmth.Q.value = 0.6;
+  saLoopGain.gain.value = 0;
+
+  base.connect(baseGain); baseGain.connect(saLoopGain);
+  octave.connect(octaveGain); octaveGain.connect(saLoopGain);
+  fifth.connect(fifthGain); fifthGain.connect(saLoopGain);
+  shimmer.connect(shimmerGain); shimmerGain.connect(saLoopGain);
+  saLoopGain.connect(warmth); warmth.connect(masterGain);
+  base.start(now); octave.start(now); fifth.start(now); shimmer.start(now);
+  saLoopNodes = { base, octave, fifth, shimmer };
+}
+
+async function setSaLoop(active) {
+  const btn = document.getElementById('sa-loop-btn');
+  const audioReady = active ? await resumeSynthAudio() : !!audioCtx;
+  if (active && !audioReady) return;
+  if (active) initSaLoop();
+  saLoopActive = active;
+  if (saLoopGain && audioCtx) {
+    const now = audioCtx.currentTime;
+    const g = saLoopGain.gain;
+    const start = Math.max(0, g.value || 0.0001);
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(start, now);
+    if (active) g.linearRampToValueAtTime(0.32, now + 0.35);
+    else g.linearRampToValueAtTime(0, now + 0.25);
+  }
+  if (btn) {
+    btn.textContent = active ? 'Sa On' : 'Sa Loop';
+    btn.title = active
+      ? 'Stop the continuous track Sa'
+      : 'Keep the track Sa sounding while you compare recording and notes';
+    btn.classList.toggle('active', active);
+  }
+}
+
+async function toggleSaLoop() {
+  await setSaLoop(!saLoopActive);
 }
 
 function playBeat() {
