@@ -467,6 +467,7 @@ let fluteAutoStopped = false;
 let uiFrame = null;
 let nextSamIdx = 0;
 let beatTimers = [];
+let notationStartToken = 0;
 const speed = 1.0;
 const audio = document.getElementById('audio');
 
@@ -517,6 +518,21 @@ function ensureSynthAudio() {
   masterGain.connect(audioCtx.destination);
 }
 
+async function resumeSynthAudio() {
+  ensureSynthAudio();
+  if (audioCtx.state !== 'running') {
+    try {
+      await Promise.race([
+        audioCtx.resume(),
+        new Promise(resolve => setTimeout(resolve, 350))
+      ]);
+    } catch (err) {
+      console.warn('Could not resume notation audio context', err);
+    }
+  }
+  return audioCtx.state === 'running';
+}
+
 function setUnifiedVolume(value) {
   unifiedVolume = Math.max(0, Math.min(1, parseFloat(value)));
   if (Number.isNaN(unifiedVolume)) unifiedVolume = 0.8;
@@ -557,7 +573,6 @@ function initFlute(firstFreq) {
 
 function startFlute(firstFreq) {
   ensureSynthAudio();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
   initFlute(firstFreq);
   fluteNodes.fund.frequency.value = firstFreq;
   fluteNodes.harm2.frequency.value = firstFreq * 2;
@@ -983,18 +998,26 @@ function fmtTime(s) {
   return `${m}:${String(sec).padStart(2,'0')}`;
 }
 
-function startNotationPlayback(fromTime = getTransportTime()) {
-  if (notes.length === 0) return;
+async function startNotationPlayback(fromTime = getTransportTime()) {
+  if (notes.length === 0) return false;
   stopNotationPlayback(false);
+  const startToken = ++notationStartToken;
   notationNoteIdx = findNoteIndexAtOrAfter(fromTime);
   const first = notes[notationNoteIdx];
   transportTime = fromTime;
   transportRecStart = fromTime;
   transportWallStart = Date.now();
   nextSamIdx = samIdxFrom(fromTime);
+  const audioReady = await resumeSynthAudio();
+  if (!audioReady || startToken !== notationStartToken || playbackMode !== 'notes') {
+    isTransportPlaying = false;
+    updatePlayButton();
+    return false;
+  }
   startFlute(first.info.freq);
   isTransportPlaying = true;
   scheduleNotationAdvance();
+  return true;
 }
 
 function scheduleNotationAdvance() {
@@ -1032,6 +1055,7 @@ function scheduleNotationAdvance() {
 }
 
 function stopNotationPlayback(updatePlaying = true) {
+  notationStartToken++;
   if (notationTimer) { clearTimeout(notationTimer); notationTimer = null; }
   if (noteOffTimer) { clearTimeout(noteOffTimer); noteOffTimer = null; }
   clearBeatTimers();
@@ -1041,13 +1065,18 @@ function stopNotationPlayback(updatePlaying = true) {
   if (updatePlaying) isTransportPlaying = false;
 }
 
-function playTransport() {
+async function playTransport() {
   if (playbackMode === 'audio') {
     audio.currentTime = getTransportTime();
-    audio.play();
-    isTransportPlaying = true;
+    try {
+      await audio.play();
+      isTransportPlaying = true;
+    } catch (err) {
+      console.warn('Could not start recording playback', err);
+      isTransportPlaying = false;
+    }
   } else {
-    startNotationPlayback(getTransportTime());
+    await startNotationPlayback(getTransportTime());
   }
   updatePlayButton();
 }
@@ -1060,8 +1089,8 @@ function pauseTransport() {
   updatePlayButton();
 }
 
-function togglePlay() {
-  if (isTransportPlaying) pauseTransport(); else playTransport();
+async function togglePlay() {
+  if (isTransportPlaying) pauseTransport(); else await playTransport();
 }
 
 function seekTransport(t) {
@@ -1084,22 +1113,35 @@ function onScrub(val) {
   seekTransport(parseFloat(val));
 }
 
-function switchPlaybackMode() {
+async function switchPlaybackMode() {
   const wasPlaying = isTransportPlaying;
   const t = getTransportTime();
   if (playbackMode === 'audio') {
     audio.pause();
     playbackMode = 'notes';
     transportTime = t;
-    if (wasPlaying) startNotationPlayback(t);
+    if (wasPlaying) {
+      isTransportPlaying = await startNotationPlayback(t);
+    } else {
+      isTransportPlaying = false;
+    }
   } else {
     stopNotationPlayback(false);
     playbackMode = 'audio';
     transportTime = t;
     audio.currentTime = t;
-    if (wasPlaying) { audio.play(); isTransportPlaying = true; }
+    if (wasPlaying) {
+      try {
+        await audio.play();
+        isTransportPlaying = true;
+      } catch (err) {
+        console.warn('Could not start recording playback', err);
+        isTransportPlaying = false;
+      }
+    } else {
+      isTransportPlaying = false;
+    }
   }
-  isTransportPlaying = wasPlaying;
   updateModeButton();
   updatePlayButton();
 }
