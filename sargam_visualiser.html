@@ -1063,7 +1063,7 @@ function updateTransportUI() {
     scrub.value = Math.min(t, dur);
   }
   if (isTransportPlaying && playbackMode === 'notes' && dur && t >= dur - 0.05) {
-    pauseTransport();
+    loopTransportFromStart();
   }
   uiFrame = requestAnimationFrame(updateTransportUI);
 }
@@ -1127,7 +1127,7 @@ function scheduleNotationAdvance() {
     }
     scheduleSamBeats(note.time, nextRecTime);
     notationNoteIdx++;
-    if (notationNoteIdx < notes.length) scheduleNotationAdvance(); else pauseTransport();
+    if (notationNoteIdx < notes.length) scheduleNotationAdvance(); else loopTransportFromStart();
   }, wait);
 }
 
@@ -1223,7 +1223,31 @@ async function switchPlaybackMode() {
   updatePlayButton();
 }
 
+async function loopTransportFromStart() {
+  if (!isTransportPlaying) return;
+  transportTime = 0;
+  currentNoteIdx = -999;
+  lastFlashedSamIdx = -1;
+  if (playbackMode === 'audio') {
+    audio.currentTime = 0;
+    try {
+      await audio.play();
+      isTransportPlaying = true;
+    } catch (err) {
+      console.warn('Could not restart recording loop', err);
+      isTransportPlaying = false;
+    }
+  } else {
+    await startNotationPlayback(0);
+  }
+  updatePlayButton();
+}
+
 audio.addEventListener('ended', () => {
+  if (playbackMode === 'audio' && isTransportPlaying) {
+    loopTransportFromStart();
+    return;
+  }
   transportTime = getTransportDuration();
   isTransportPlaying = false;
   updatePlayButton();
